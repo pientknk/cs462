@@ -16,243 +16,125 @@
 
 using namespace std;
 
+//do we want this to be a class?
 typedef struct Packet {
 	uint8_t sof;
 	uint32_t src;
 	uint32_t dst;
 	uint8_t seqn;
-
+	byte[] payload;
+	uint32_t cksum;
+	uint8_t eof;
 };
 
 int main() {
-	// GET SCHEDULER
-	bool choseScheduler = false;
-	string scheduler;
-	while (!choseScheduler) {
-		cout << "Please specify a process scheduler: rts, mfqs, or whs" << endl;
-		cin >> scheduler;
-		if (scheduler == "rts" || scheduler == "mfqs" || scheduler == "whs") {
-			choseScheduler = true;
+	// GET Packet size from user
+	bool validPacketSize = false;
+	string packetSize;
+	while (!validPacketSize) {
+		cout << "Please specify a packet size in bytes: " << endl;
+		cin >> packetSize;
+		if (packetSize >= 100 || packetSize <= 300) {
+			validPacketSize = true;
 		}
 		else {
-			cout << "\nERROR: Incorrect scheduler '" << scheduler << "' specified, expected rts, mfqs, or whs" << endl;
+			cout << "\nERROR: Packet size must be between 100 and 300 bytes, but you said: '" << packetSize << "'" << endl;
 		}
 	}
 
-	// GET INPUT FROM FILE OR USER
-	bool choseFileOrInput = false;
-	string inputType;
-	while (!choseFileOrInput) {
-		cout << "Do you want to run " << scheduler << " with a file(f) or manual(m) input for processes?" << endl;
-		cin >> inputType;
-		if (inputType == "f" || inputType == "m") {
-			choseFileOrInput = true;
+	// GET range of sequence numbers from user
+	bool choseSeqNumRange = false;
+	string seqNumRange;
+	while (!choseSeqNumRange) {
+		cout << "Please specify the range of sequence numbers: " << endl;
+		cin >> seqNumRange;
+		if (seqNumRange >= 1 || seqNumRange <= INTMAX_C) {
+			choseSeqNumRange = true;
 		}
 		else {
-			cout << "\nERROR: Incorrect input type '" << inputType << "' specified, expected f or m" << endl;
+			cout << "\nERROR: Sequence number range must be within 1-" << INTMAX_C << ", but you said: '" << seqNumRange << "'" << endl;
 		}
-	}
-
-	// GET PROCESSES TO RUN
-	vector<Process> processes;
-	stringstream stream;
-	string input;
-	array<int, 6> in;
-	for (int i = 0; i < (int)in.size(); i++) {
-		in[i] = -1;
-	}
-	if (inputType == "f") {
-		bool choseInputFile = false;
-		while (!choseInputFile) {
-			cout << "Enter File Name: " << endl;
-			string fileName;
-			cin >> fileName;
-			ifstream myfile(fileName);
-			if (myfile.good() && myfile.is_open()) {
-				choseInputFile = true;
-				while (getline(myfile, input)) {
-					stream.str(input);
-					stream >> in[0] >> in[1] >> in[2] >> in[3] >> in[4] >> in[5];
-					stream.clear();
-					Process newProcess = Process(in[0], in[1], in[2], in[3], in[5], in[4]);
-					if (scheduler == "mfqs") {
-						if (newProcess.getArrival() >= 0 && newProcess.getPriority() >= 0 && newProcess.getBurstTime() > 0 && newProcess.getPid() != 0) {
-							processes.push_back(newProcess);
-						}
-					}
-					else if (scheduler == "rts") {
-						if (newProcess.getArrival() >= 0 && newProcess.getBurstTime() > 0 && newProcess.getArrival() < newProcess.getDeadline() && newProcess.getDeadline() > 0) {
-							processes.push_back(newProcess);
-						}
-					}
-					else if(scheduler == "whs"){
-						if (newProcess.getArrival() >= 0 && newProcess.getPriority() >= 0 && newProcess.getBurstTime() > 0 && newProcess.getPid() != 0 && newProcess.getIO() >= 0) {
-							processes.push_back(newProcess);
-						}
-					}
-					else {
-						cout << "ERROR: Unknown scheduler passed in" << endl;
-					}
-				}
-
-				sort(processes.begin(), processes.end(), [](const Process& left, const Process& right)
-				{
-					return left.getArrival() < right.getArrival();
-				});
-			}
-			else {
-				cout << "\nERROR: Could not find valid file '" << fileName << "'" << endl;
-			}
-		}
-	}
-	else if (inputType == "m") {
-		bool hasAllInput = false;
-		vector<string> inputParts;
-		cout << "Enter Process Information: ProcessID   Burst   Arrival     Priority    Deadline    I/O" << endl;
-		cout << "Example Process: 1 8 0 23 10 3" << endl;
-		cout << "Hit Enter to input another process or hit Enter then q then Enter to finish" << endl;
-		while (!hasAllInput) {
-			string process;
-			getline(cin, process);
-			if (process == "q") {
-				hasAllInput = true;
-			}
-			else if(process != ""){
-				int count = 0;
-				std::istringstream iss(process);
-				for (string s; iss >> s; ) {
-					count++;
-				}
-				if (count == 6) {
-					inputParts.push_back(process);
-					//cout << "Added process: " << process << endl;
-					cout << "Added process. Processes added: " << inputParts.size() << endl;
-				}
-				else {
-					cout << "ERROR: Expected 6 values but got " << count << endl;
-				}
-			}
-		}
-
-		for (auto & inputPart : inputParts) {
-			stream.str(inputPart);
-			stream >> in[0] >> in[1] >> in[2] >> in[3] >> in[4] >> in[5];
-			stream.clear();
-			Process newProcess = Process(in[0], in[1], in[2], in[3], in[5], in[4]);
-			cout << "Process(" << in[0] << ", " << in[1] << ", " << in[2] << ", " << in[3] << ", " << in[5] << ", " << in[4] << ")" << endl;
-			if (newProcess.getArrival() >= 0 && newProcess.getPriority() >= 0 && newProcess.getBurstTime() > 0) {
-				processes.push_back(newProcess);
-			}
-		} 
-
-		sort(processes.begin(), processes.end(), [](const Process& left, const Process& right)
-		{
-			return left.getArrival() < right.getArrival();
-		});
-	}
-	else {
-		cout << "\nERROR: Unknown input type specified" << endl;
-	}
-
-	//RUN SCHEDULERS
-	if (scheduler == "rts") {
-		bool choseRTSVersion = false;
-		string rtsVersion;
-		while (!choseRTSVersion) {
-			cout << "Hard Real-Time(h) or Soft Real-Time?(s)" << endl;
-			cin >> rtsVersion;
-			if (rtsVersion == "h" || rtsVersion == "s") {
-				choseRTSVersion = true;
-			}
-			else {
-				cout << "\nERROR: Uknown Real-Time Scheduler '" << rtsVersion << "' specified. Must be h or s" << endl;
-			}
-		}
-
-		RTS(processes, rtsVersion);
-	}
-	else if (scheduler == "mfqs") {
-		int numQueues;
-		int ageNum;
-		int quantumBurst;
-		bool choseQueueCount = false;
-		while (!choseQueueCount) {
-			cout << "Enter number of queues:" << endl;
-			cin >> numQueues;
-			if (numQueues > 0 && numQueues < 6) {
-				choseQueueCount = true;
-			}
-			else {
-				cout << "\nERROR: Number of queues must be between 1 and 5" << endl;
-			}
-		}
-
-		bool choseQuantumBurst = false;
-		while (!choseQuantumBurst) {
-			cout << "Enter Quantum Burst time:" << endl;
-			cin >> quantumBurst;
-			if (quantumBurst > 0) {
-				choseQuantumBurst = true;
-			}
-			else {
-				cout << "\nERROR: Quantum burst time must be greater than 0" << endl;
-			}
-		}
-
-		bool choseAgingNumber = false;
-		while (!choseAgingNumber) {
-			cout << "Enter Aging time:" << endl;
-			cin >> ageNum;
-			if (ageNum > 0) {
-				choseAgingNumber = true;
-			}
-			else {
-				cout << "\nERROR: Aging time must be greater than 0" << endl;
-			}
-		}
-
-		MFQS(processes, numQueues, quantumBurst, ageNum);
-	}
-	else if (scheduler == "whs") {
-		int quantumBurst;
-		bool choseQuantum = false;
-		while (!choseQuantum) {
-			cout << "Enter Quantum Burst time:" << endl;
-			cin >> quantumBurst;
-			if (quantumBurst > 0) {
-				choseQuantum = true;
-			}
-			else {
-				cout << "\nERROR: Quantum Burst must be greater than 0" << endl;
-			}
-		}
-		WHS(processes, quantumBurst);
-	}
-	else {
-		cout << "\nERROR: Unknown Scheduler requested";
 	}
 
 	exit(0);
 }
 
-void printStats(double completed, double waitingTime, double turnaroundTime) {
-	if (completed != 0) {
-		cout << endl << "Average Waiting Time (AWT): " << (double)waitingTime / completed << endl;
-		cout << "Average Turnaround Time (ATT): " << (double)turnaroundTime / completed << endl;
-		cout << "Total number of processes scheduled (NP): " << completed << endl; //??? should this be any process that had CPU time? not just completed?
+void printStats(long packetSize, int numPacketsSent, int numPacketsReceived, double totalTime, double throughput, string md5Sum) {
+	cout << endl << "Packet Size: " << packetSize << "bytes" << endl;
+	if (numPacketsSent != 0) {
+		cout << << "Number of packets sent: " << numPacketsSent << endl;
 	}
 	else {
-		cout << endl << "Average Waiting Time (AWT): 0" << endl;
-		cout << "Average Turnaround Time (ATT): 0" << endl;
-		cout << "Total number of processes scheduled (NP): 0" << endl;
+		cout << << "Number of packets received: " << numPacketsReceived << endl;
 	}
+
+	cout << endl << "Total elapsed time: " << totalTime << endl;
+	cout << "Throughput (Mbps): " << throughput << endl;
+	cout << "md5sum: " << md5Sum << endl;
 }
 
-void frame() {
+void createPacket() {
 	//Start of frame (SOF) (8 bits)
 	//SRC IPv4 (32 bits)
 	//DST IPV4 (32 bits)
 	//SEQ# (8 bits)
-	//Payload (100 bytes)
+	//Payload (100 bytes default)
+	//Checksum (32 bits cuz it takes 17?)
+	//End of Frame (EOF) (8 bits)
+}
 
+//CRC16 checksum (it's actually 17 bits?) from https://stackoverflow.com/questions/10564491/function-to-calculate-a-crc16-checksum
+
+#define CRC16 0x8005
+
+uint16_t gen_crc16(const uint8_t *data, uint16_t size)
+{
+	uint16_t out = 0;
+	int bits_read = 0, bit_flag;
+
+	/* Sanity check: */
+	if (data == NULL)
+		return 0;
+
+	while (size > 0)
+	{
+		bit_flag = out >> 15;
+
+		/* Get next bit: */
+		out <<= 1;
+		out |= (*data >> bits_read) & 1; // item a) work from the least significant bits
+
+										 /* Increment bit counter: */
+		bits_read++;
+		if (bits_read > 7)
+		{
+			bits_read = 0;
+			data++;
+			size--;
+		}
+
+		/* Cycle check: */
+		if (bit_flag)
+			out ^= CRC16;
+
+	}
+
+	// item b) "push out" the last 16 bits
+	int i;
+	for (i = 0; i < 16; ++i) {
+		bit_flag = out >> 15;
+		out <<= 1;
+		if (bit_flag)
+			out ^= CRC16;
+	}
+
+	// item c) reverse the bits
+	uint16_t crc = 0;
+	i = 0x8000;
+	int j = 0x0001;
+	for (; i != 0; i >>= 1, j <<= 1) {
+		if (i & out) crc |= j;
+	}
+
+	return crc;
 }
