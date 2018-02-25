@@ -70,7 +70,7 @@ void printStats(long packetSize, int numPacketsSent, int numPacketsReceived, dou
 
 	cout << endl << "Total elapsed time: " << totalTime << endl;
 	cout << "Throughput (Mbps): " << throughput << endl;
-	cout << "md5sum: " << md5Sum << endl;
+	cout << "md5sum: " << md5Sum << endl;boosrt 
 }
 
 void createPacket() {
