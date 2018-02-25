@@ -109,9 +109,18 @@ int serverSocketAccept(int serverSocket)
 	return sockfd;
 }
 
-//flag 0 for receiving, 1 for sending
-void printPrimes(int flag, int startingIndex, int longLimit, unsigned long *dataPointer, int limit){
-	
+void printStats(long packetSize, int numPacketsSent, int numPacketsReceived, double totalTime, double throughput, string md5Sum) {
+	cout << endl << "Packet Size: " << packetSize << "bytes" << endl;
+	if (numPacketsSent != 0) {
+		cout << "Number of packets sent: " << numPacketsSent << endl;
+	}
+	else {
+		cout << "Number of packets received: " << numPacketsReceived << endl;
+	}
+
+	cout << endl << "Total elapsed time: " << totalTime << endl;
+	cout << "Throughput (Mbps): " << throughput << endl;
+	cout << "md5sum: " << md5Sum << endl;
 }
  
 void server(int portNum, int packetSize)
@@ -127,7 +136,7 @@ void server(int portNum, int packetSize)
 	ssize_t bytes_to_receive;
 	ssize_t bytes_written;
 	int bytes = 0;
-	char* packetBuffer = new char[MAX_PACKET_SIZE];
+	char* packetBuffer = new char[packetSize];
 	for (int i = 0; i < packetSize; i++) {
 		packetBuffer[i] = '0';
 	}
@@ -142,28 +151,41 @@ void server(int portNum, int packetSize)
 			break;
 		}
 		else {
-			cout << "Server got value: " << *packetBuffer << endl;
+			cout << "Server got value: " << endl;
+			for (int i = 0; i < bytes; i++) {
+				cout << *(packetBuffer + i) << "";
+			}
+			cout << endl;
 		}
 		
 		/**** WRITING ****/
 		bytes_written = 0;
 		bytes = 0;
+		char packetNum = 'Z';
+
+		for (int i = 0; i < packetSize; i++) {
+			if (i == 1) {
+				packetNum = *(packetBuffer + i);
+			}
+		}
 
 		//send ack over to client with packet number
-		char packetNum = 0;
-		char packet[] = { packetNum, ACK };
-		char* ackMsg = packet;
+		char packet = packetNum;
+		char* ackMsg = &packet;
 		
-		bytes = write(sockfd, ackMsg, sizeof(packet) / sizeof(packet[0]));
+		bytes = write(sockfd, ackMsg, sizeof(packet));
 		if(bytes <= 0){
 			cout << "2. ERROR writing to socket: " << sockfd << endl;
 			break;
 		} 
 		else {
-			cout << "Server wrote value: " << *ackMsg << endl;
+			cout << "Server wrote ack: " << endl;
+			for (int i = 0; i < bytes; i++) {
+				cout << *(ackMsg + i);
+			}
+			cout << endl;
 		}
 		
-		//sent
 		cout << "To: thing2.cs.uwec.edu" << endl << endl;
 
 		break;
@@ -181,23 +203,32 @@ void client(int portNum, int packetSize, int seqNumberRange)
 	ssize_t bytes_received = 0;
 	ssize_t bytes_to_receive;
 	int bytes = 0;
-	char ack[]{ '0', '0' };
+	char ack[]{ 'Z', 'Z' };
 	char* ackBuffer = ack;
 	int sequenceNumber = 0;
 	char a = 'A';
 
-	char* packetBuffer = new char[MAX_PACKET_SIZE];
+	char* packetBuffer = new char[packetSize];
 	for (int i = 0; i < packetSize; i++) {
 		*(packetBuffer + i) = '0';
 	}
+
+	char charsWritten = 0;
 
 	while(1){
 		/**** WRITING ****/
 		bytes_written = 0;
 		char* str;
-		char packetNum = (char)sequenceNumber;
+		char packetNum = '0' + sequenceNumber;
 		char packet[] = { SOH, packetNum, a, EOP};
-		char* pkt = packet;
+		packetBuffer = packet;
+		charsWritten = 0;
+
+		cout << "Values in packet: " << endl;
+		for (int i = 0; i < sizeof(packet); i++) {
+			cout << packet[i] << "";
+		}
+		cout << endl;
 
 		bytes = write(socket, packetBuffer, sizeof(packetSize * CHAR_SIZE));
 		if(bytes <= 0)
@@ -206,22 +237,29 @@ void client(int portNum, int packetSize, int seqNumberRange)
 			break;
 		}
 		else {
-			cout << "Client wrote value: " << packetBuffer << endl;
+			cout << "Client wrote value: " << endl;
+			for (int i = 0; i < bytes; i++) {
+				cout << *(packetBuffer + i) << "";
+			}
 		}
 		
-		printf("To: thing3.cs.uwec.edu\n\n");
+		cout << endl << "To: thing3.cs.uwec.edu" << endl << endl;
 		
 		/**** READING ****/
 		bytes_received = 0;
 		bytes = 0;
 		
-		bytes = read(socket, ackBuffer, sizeof(ack) / sizeof(ack[0]));
+		bytes = read(socket, ackBuffer, sizeof(ack));
 		if(bytes <= 0){
 			cout << "2. ERROR reading from socket: " << socket << endl;
 			break;
 		}
 		else {
-			cout << "Client received: " << *ack << endl;
+			cout << "Client got ACK: " << endl;
+			for (int i = 0; i < bytes; i++) {
+				cout << *(ackBuffer + i) << "";
+			}
+			cout << endl;
 		}
 	}
 	close(socket);
