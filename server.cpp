@@ -170,6 +170,31 @@ void server(int portNum)
 	while(1){
 		/**** READING ****/
 		cout << "Expected seq#: " << sequenceNumber << endl;
+		bool foundEndOfPacket = false;
+		int packetBufferIndex = 0;
+		while (!foundEndOfPacket) {
+			bytes = read(sockfd, packetBuffer + packetBufferIndex, 1);
+			if (bytes <= 0) {
+				//cout << "1. ERROR reading from socket: " << sockfd << endl;
+				break;
+			}
+			else {
+				char currentChar = *(packetBuffer + packetBufferIndex);
+				if (packetBufferIndex != 0 && currentChar == EOP) {
+					//end of packet so break loop
+					foundEndOfPacket = true;
+				}
+				totalBytes += bytes;
+				numPacketsReceived++;
+				packetBufferIndex++;
+				/*cout << "Server got value: " << endl;
+				for (int i = 0; i < bytes; i++) {
+				cout << *(packetBuffer + i) << "";
+				}
+				cout << endl;*/
+			}
+		}
+
 		bytes = read(sockfd, packetBuffer, packetSize + 3);
 		if(bytes <= 0){
 			//cout << "1. ERROR reading from socket: " << sockfd << endl;
