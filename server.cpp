@@ -10,6 +10,10 @@
 #include <math.h>
 #include <iostream>
 #include <limits.h>
+#include <ctime>
+#include <sstream>
+#include <fstream>
+#include <sys/time.h>
 
 using namespace std;
 const char SOH = 0x7E;
@@ -109,57 +113,79 @@ int serverSocketAccept(int serverSocket)
 	return sockfd;
 }
 
-void printStats(long packetSize, int numPacketsSent, int numPacketsReceived, double totalTime, double throughput, string md5Sum) {
-	cout << endl << "Packet Size: " << packetSize << "bytes" << endl;
-	if (numPacketsSent != 0) {
-		cout << "Number of packets sent: " << numPacketsSent << endl;
+string parseFile(int fileSize) {
+	stringstream stream;
+	char* chars = new char[fileSize];
+	ifstream myfile("longtest.txt");
+	int currentIndex = 0;
+	if (myfile.good() && myfile.is_open()) {
+		string input((istreambuf_iterator<char>(myfile)), istreambuf_iterator<char>());
+		//cout << input << endl;
+		return input;
 	}
 	else {
-		cout << "Number of packets received: " << numPacketsReceived << endl;
+		cout << "ERROR: Could not open file" << endl;
+		return "-1";
 	}
+}
 
-	cout << endl << "Total elapsed time: " << totalTime << endl;
-	cout << "Throughput (Mbps): " << throughput << endl;
-	cout << "md5sum: " << md5Sum << endl;
+int getFileSize() {
+	string input;
+	stringstream stream;
+	ifstream myfile("longtest.txt", ifstream::binary);
+	if (myfile.good() && myfile.is_open()) {
+		myfile.seekg(0, myfile.end);
+		return myfile.tellg();
+	}
+	else {
+		cout << "ERROR: Could not open file" << endl;
+		return -1;
+	}
 }
  
-void server(int portNum, int packetSize)
+void server(int portNum)
 {
+	int sequenceNumber = 0;
+	int numPacketsReceived = 0;
+	int totalBytes = 0;
 	int ss = serverSocketSetup(portNum);
-	
 	//listen to up to 2 connections
 	listen(ss, 2);
 	int sockfd = serverSocketAccept(ss);
-
-	ssize_t bytes_to_write = 0;
-	ssize_t bytes_received = 0;
-	ssize_t bytes_to_receive;
-	ssize_t bytes_written;
-	int bytes = 0;
-	char* packetBuffer = new char[packetSize];
-	for (int i = 0; i < packetSize; i++) {
-		packetBuffer[i] = '0';
+	int packetSize = 0;
+	int* packetSizePointer = &packetSize;
+	int bytes = read(sockfd, packetSizePointer, sizeof(int));
+	if (bytes <= 0) {
+		cout << "1. ERROR reading from socket: " << sockfd << endl;
 	}
-	
+
+	struct timeval time;
+	gettimeofday(&time, NULL);
+
+	double duration = 0.0;
+	char* packetBuffer = new char[packetSize+3];
+	time_t startTime = time.tv_sec;
+	suseconds_t startTimeUSecs = time.tv_usec;
+	//cout << "start time " << startTime << endl;
 	while(1){
 		/**** READING ****/
-		bytes_received = 0;
-		
-		bytes = read(sockfd, packetBuffer, sizeof(packetSize * CHAR_SIZE));
+		cout << "Expected seq#: " << sequenceNumber << endl;
+		bytes = read(sockfd, packetBuffer, packetSize + 3);
 		if(bytes <= 0){
-			cout << "1. ERROR reading from socket: " << sockfd << endl;
+			//cout << "1. ERROR reading from socket: " << sockfd << endl;
 			break;
 		}
 		else {
-			cout << "Server got value: " << endl;
+			totalBytes += bytes;
+			numPacketsReceived++;
+			/*cout << "Server got value: " << endl;
 			for (int i = 0; i < bytes; i++) {
 				cout << *(packetBuffer + i) << "";
 			}
-			cout << endl;
+			cout << endl;*/
 		}
 		
 		/**** WRITING ****/
-		bytes_written = 0;
 		bytes = 0;
 		char packetNum = 'Z';
 
@@ -167,29 +193,39 @@ void server(int portNum, int packetSize)
 			if (i == 1) {
 				packetNum = *(packetBuffer + i);
 			}
+			else if (i > 1) {
+				break;
+			}
 		}
 
+		cout << "Packet " << packetNum << " received" << endl;
+		sequenceNumber++;
+		sequenceNumber %= 2;
 		//send ack over to client with packet number
-		char packet = packetNum;
-		char* ackMsg = &packet;
+		char* ackMsg = &packetNum;
 		
-		bytes = write(sockfd, ackMsg, sizeof(packet));
+		bytes = write(sockfd, ackMsg, sizeof(packetNum));
 		if(bytes <= 0){
 			cout << "2. ERROR writing to socket: " << sockfd << endl;
 			break;
 		} 
 		else {
-			cout << "Server wrote ack: " << endl;
-			for (int i = 0; i < bytes; i++) {
-				cout << *(ackMsg + i);
-			}
-			cout << endl;
+			//cout << "Server wrote ack: " << *(ackMsg + 0) << endl;
+			cout << "Ack " << *(ackMsg + 0) << " sent" << endl;
 		}
 		
-		cout << "To: thing2.cs.uwec.edu" << endl << endl;
-
-		break;
+		//cout << "To: thing2.cs.uwec.edu" << endl << endl;
 	}
+
+	gettimeofday(&time, NULL);
+	double Uduration = (time.tv_usec - startTimeUSecs);
+	
+	cout.precision(5);
+	cout << endl << "Packet Size Received: " << totalBytes << " bytes" << endl;
+	cout << "Number of packets received: " << numPacketsReceived << endl;
+	cout << "Total elapsed time: " << Uduration / 1000000 << "s" << endl;
+	cout << "md5sum: " << "0" << endl;
+
 	close(ss);
 	close(sockfd);
 }
@@ -197,56 +233,106 @@ void server(int portNum, int packetSize)
 void client(int portNum, int packetSize, int seqNumberRange)
 {
 	int socket = callServer("thing3.cs.uwec.edu", portNum);
-
-	ssize_t bytes_written = 0;
-	ssize_t bytes_to_write;
-	ssize_t bytes_received = 0;
-	ssize_t bytes_to_receive;
-	int bytes = 0;
-	char ack[]{ 'Z', 'Z' };
-	char* ackBuffer = ack;
+	int* intBuffer = &packetSize;
+	int bytes = write(socket, intBuffer, sizeof(int));
+	if (bytes <= 0)
+	{
+		cout << "1. ERROR writing to socket: " << socket << endl;
+	}
+	int payloadSize = packetSize - 3;
+	int bytesWritten = 0;
+	int totalBytes = 1;
+	int numPacketsSent = 0;
+	char ack;
+	char* ackBuffer = &ack;
 	int sequenceNumber = 0;
-	char a = 'A';
-
+	double duration = 0.0;
 	char* packetBuffer = new char[packetSize];
 	for (int i = 0; i < packetSize; i++) {
 		*(packetBuffer + i) = '0';
 	}
+	
+	totalBytes = getFileSize();
+	struct timeval time;
+	gettimeofday(&time, NULL);
+	time_t startTime = time.tv_sec;
+	suseconds_t startTimeUSecs = time.tv_usec;
+	int currentIndex = 0;
+	string payload = parseFile(totalBytes);
+	char packet[MAX_PACKET_SIZE];
+	startTime = clock();
 
-	char charsWritten = 0;
+	while(totalBytes){
+		int currentPacketSize = packetSize;
+		if (totalBytes < packetSize) {
+			currentPacketSize = totalBytes;
+		}
 
-	while(1){
 		/**** WRITING ****/
-		bytes_written = 0;
-		char* str;
-		char packetNum = '0' + sequenceNumber;
-		char packet[] = { SOH, packetNum, a, EOP};
-		packetBuffer = packet;
-		charsWritten = 0;
+		char* packetPayloadPointer = &payload[currentIndex];
+		currentIndex += currentPacketSize;
+		char* packetPayload = new char[currentPacketSize];
+		strncpy(packetPayload, packetPayloadPointer, currentPacketSize);
 
-		cout << "Values in packet: " << endl;
-		for (int i = 0; i < sizeof(packet); i++) {
+		/*for (int i = 0; i < currentPacketSize; i++) {
+			cout << *(packetPayload + i);
+		}
+		cout << endl;*/
+
+		char packetNum = '0' + sequenceNumber;
+		
+		int packetIndex = 0;
+		int packetPayloadIndex = 0;
+
+		cout << "Current packet size " << currentPacketSize << endl;
+		while(packetIndex != currentPacketSize + 3) {
+			if (packetIndex == 0) {
+				packet[packetIndex] = SOH;
+			}
+			else if (packetIndex == 1) {
+				packet[packetIndex] = packetNum;
+			}
+			else if(packetIndex == currentPacketSize + 2){
+				packet[packetIndex] = EOP;
+			}
+			else {
+				packet[packetIndex] = packetPayload[packetPayloadIndex];
+				packetPayloadIndex++;
+			}
+			packetIndex++;
+		}
+
+		packetBuffer = packet;
+
+		/*cout << "Values in packet: " << endl;
+		for (int i = 0; i < currentPacketSize + 3; i++) {
 			cout << packet[i] << "";
 		}
-		cout << endl;
-
-		bytes = write(socket, packetBuffer, sizeof(packetSize * CHAR_SIZE));
+		cout << endl;*/
+		gettimeofday(&time, NULL);
+		suseconds_t startWriteUSec = time.tv_usec;
+		bytes = write(socket, packetBuffer, currentPacketSize + 3);
 		if(bytes <= 0)
 		{
 			cout << "1. ERROR writing to socket: " << socket << endl;
 			break;
 		}
 		else {
-			cout << "Client wrote value: " << endl;
+			totalBytes -= bytes - 3;
+			bytesWritten += bytes;
+			numPacketsSent++;
+			/*cout << "Client wrote value: " << endl;
 			for (int i = 0; i < bytes; i++) {
 				cout << *(packetBuffer + i) << "";
 			}
+			cout << endl;*/
+
+			cout << "Packet " << sequenceNumber << " sent" << endl;
 		}
 		
-		cout << endl << "To: thing3.cs.uwec.edu" << endl << endl;
+		//cout << endl << "To: thing3.cs.uwec.edu" << endl << endl;
 		
 		/**** READING ****/
-		bytes_received = 0;
 		bytes = 0;
 		
 		bytes = read(socket, ackBuffer, sizeof(ack));
@@ -255,15 +341,38 @@ void client(int portNum, int packetSize, int seqNumberRange)
 			break;
 		}
 		else {
-			cout << "Client got ACK: " << endl;
+			/*cout << "Client got ACK: " << endl;
 			for (int i = 0; i < bytes; i++) {
 				cout << *(ackBuffer + i) << "";
 			}
-			cout << endl;
+			cout << endl;*/
+			gettimeofday(&time, NULL);
+			suseconds_t endWriteUSec = time.tv_usec;
+			double rtt = endWriteUSec - startWriteUSec;
+
+			cout << "Ack " << sequenceNumber << " received. (RTT for pkt " << sequenceNumber << " = " << rtt << "us)" << endl;
 		}
+
+		sequenceNumber++;
+		sequenceNumber %= seqNumberRange;
+		
 	}
+
+	gettimeofday(&time, NULL);
+	double Uduration = (time.tv_usec - startTimeUSecs);
+	double throughput = ((double)bytesWritten / (double)Uduration);
+
+	cout.precision(5);
+	cout << endl << "Packet Size: " << bytesWritten << " bytes" << endl;
+	cout << "Number of packets sent: " << numPacketsSent << endl;
+	cout << "Total elapsed time: " << Uduration / 1000000 << "s" << endl;
+	cout << "Throughput (Mbps): " << throughput << endl;
+	cout << "md5sum: " << "0" << endl;
+
 	close(socket);
 }
+
+
 
 //TO RUN SERVER: ./packet 9036 -s
 //TO RUN CLIENT: ./packet 9036 -c
@@ -279,6 +388,8 @@ int main(int argc, char **argv){
 		} else{
 			//if this process should be the server
 			if(!strcmp(argv[2], "-s")){
+				server(portNum);
+			} else if(!strcmp(argv[2], "-c")){
 				size_t* st;
 				// GET Packet size from user
 				bool validPacketSize = false;
@@ -309,8 +420,6 @@ int main(int argc, char **argv){
 						cout << "\nERROR: Sequence number range must be within 1-" << MAX_SEQ_NUM_RANGE << ", but you said: '" << seqNumberRange << "'" << endl;
 					}
 				}
-				server(portNum, packetSizeInBytes);
-			} else if(!strcmp(argv[2], "-c")){
 				client(portNum, packetSizeInBytes, seqNumberRange);
 			} else{
 				cerr << "ERROR with third parameter: " << argv[2] << ", the proper flags are -c or -s" << endl;
