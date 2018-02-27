@@ -16,8 +16,11 @@
 #include <sys/time.h>
 
 using namespace std;
-const char SOH = 0x7E;
+const char SOH = 0x01;
+const char STX = 0x02;
+const char ETX = 0x03;
 const char EOP = 0x7E;
+const char DLE = 0x10;
 const char ACK = 0x06; //ACK Ascii character, also (0000 0110)
 const int MAX_PACKET_SIZE = 2048; //payload size
 const int MAX_SEQ_NUM_RANGE = 2; //number of available packet numbers starting with 0
@@ -116,7 +119,7 @@ int serverSocketAccept(int serverSocket)
 string parseFile(int fileSize) {
 	stringstream stream;
 	char* chars = new char[fileSize];
-	ifstream myfile("longtest.txt");
+	ifstream myfile("test.txt");
 	int currentIndex = 0;
 	if (myfile.good() && myfile.is_open()) {
 		string input((istreambuf_iterator<char>(myfile)), istreambuf_iterator<char>());
@@ -132,7 +135,7 @@ string parseFile(int fileSize) {
 int getFileSize() {
 	string input;
 	stringstream stream;
-	ifstream myfile("longtest.txt", ifstream::binary);
+	ifstream myfile("test.txt", ifstream::binary);
 	if (myfile.good() && myfile.is_open()) {
 		myfile.seekg(0, myfile.end);
 		return myfile.tellg();
@@ -145,6 +148,7 @@ int getFileSize() {
  
 void server(int portNum)
 {
+	int packetFramingSize = 4;
 	int sequenceNumber = 0;
 	int numPacketsReceived = 0;
 	int totalBytes = 0;
@@ -163,11 +167,11 @@ void server(int portNum)
 	gettimeofday(&time, NULL);
 
 	double duration = 0.0;
-	char* packetBuffer = new char[packetSize+3];
+	char* packetBuffer = new char[int(packetSize * 1.5) + packetFramingSize];
 	time_t startTime = time.tv_sec;
 	suseconds_t startTimeUSecs = time.tv_usec;
-	//cout << "start time " << startTime << endl;
-	while(1){
+	bool isDone = false;
+	while(!isDone){
 		/**** READING ****/
 		cout << "Expected seq#: " << sequenceNumber << endl;
 		bool foundEndOfPacket = false;
@@ -176,39 +180,53 @@ void server(int portNum)
 			bytes = read(sockfd, packetBuffer + packetBufferIndex, 1);
 			if (bytes <= 0) {
 				//cout << "1. ERROR reading from socket: " << sockfd << endl;
+				isDone = true;
 				break;
 			}
 			else {
 				char currentChar = *(packetBuffer + packetBufferIndex);
-				if (packetBufferIndex != 0 && currentChar == EOP) {
+				//cout << "current char: " << currentChar << endl;
+				if (packetBufferIndex != 0 && currentChar == ETX) {
 					//end of packet so break loop
 					foundEndOfPacket = true;
 				}
 				totalBytes += bytes;
-				numPacketsReceived++;
 				packetBufferIndex++;
-				/*cout << "Server got value: " << endl;
-				for (int i = 0; i < bytes; i++) {
-				cout << *(packetBuffer + i) << "";
-				}
-				cout << endl;*/
+				
 			}
 		}
 
-		bytes = read(sockfd, packetBuffer, packetSize + 3);
-		if(bytes <= 0){
-			//cout << "1. ERROR reading from socket: " << sockfd << endl;
+		if (isDone) {
 			break;
 		}
-		else {
-			totalBytes += bytes;
-			numPacketsReceived++;
-			/*cout << "Server got value: " << endl;
-			for (int i = 0; i < bytes; i++) {
-				cout << *(packetBuffer + i) << "";
-			}
-			cout << endl;*/
+
+		//create string from buffer somehow
+		while (1) {
+
+			break;
 		}
+
+		/*cout << "Server got value: " << endl;
+		for (int i = 0; i < packetSize+3; i++) {
+		cout << *(packetBuffer + i) << "";
+		}
+		cout << endl;*/
+		numPacketsReceived++;
+
+		//bytes = read(sockfd, packetBuffer, packetSize + packetFramingSize);
+		//if(bytes <= 0){
+		//	cout << "1. ERROR reading from socket: " << sockfd << endl;
+		//	break;
+		//}
+		//else {
+		//	totalBytes += bytes;
+		//	numPacketsReceived++;
+		//	/*cout << "Server got value: " << endl;
+		//	for (int i = 0; i < bytes; i++) {
+		//		cout << *(packetBuffer + i) << "";
+		//	}
+		//	cout << endl;*/
+		//}
 		
 		/**** WRITING ****/
 		bytes = 0;
@@ -224,8 +242,10 @@ void server(int portNum)
 		}
 
 		cout << "Packet " << packetNum << " received" << endl;
+
+		/***************  Update to make client first send packetseq range amount so we know what to expect for packetnum */
 		sequenceNumber++;
-		sequenceNumber %= 2;
+		sequenceNumber %= 2; 
 		//send ack over to client with packet number
 		char* ackMsg = &packetNum;
 		
@@ -257,6 +277,7 @@ void server(int portNum)
 
 void client(int portNum, int packetSize, int seqNumberRange)
 {
+	int packetFramingSize = 4;
 	int socket = callServer("thing3.cs.uwec.edu", portNum);
 	int* intBuffer = &packetSize;
 	int bytes = write(socket, intBuffer, sizeof(int));
@@ -264,7 +285,6 @@ void client(int portNum, int packetSize, int seqNumberRange)
 	{
 		cout << "1. ERROR writing to socket: " << socket << endl;
 	}
-	int payloadSize = packetSize - 3;
 	int bytesWritten = 0;
 	int totalBytes = 1;
 	int numPacketsSent = 0;
@@ -272,7 +292,7 @@ void client(int portNum, int packetSize, int seqNumberRange)
 	char* ackBuffer = &ack;
 	int sequenceNumber = 0;
 	double duration = 0.0;
-	char* packetBuffer = new char[packetSize];
+	char* packetBuffer = new char[int(packetSize * 1.5)];
 	for (int i = 0; i < packetSize; i++) {
 		*(packetBuffer + i) = '0';
 	}
@@ -284,7 +304,7 @@ void client(int portNum, int packetSize, int seqNumberRange)
 	suseconds_t startTimeUSecs = time.tv_usec;
 	int currentIndex = 0;
 	string payload = parseFile(totalBytes);
-	char packet[MAX_PACKET_SIZE];
+	char packet[int(MAX_PACKET_SIZE * 1.5)];
 	startTime = clock();
 
 	while(totalBytes){
@@ -310,40 +330,84 @@ void client(int portNum, int packetSize, int seqNumberRange)
 		int packetPayloadIndex = 0;
 
 		cout << "Current packet size " << currentPacketSize << endl;
-		while(packetIndex != currentPacketSize + 3) {
+		//asssign header of packet
+		for (int i = 0; i <= 2; i++) {
+			if (i == 0) {
+				packet[i] = SOH;
+			}
+			else if (i == 1) {
+				packet[i] = packetNum;
+			}
+			else {
+				packet[i] = STX;
+			}
+		}
+
+		//assign payload of packet
+		int i = packetFramingSize - 1;
+		while (packetPayloadIndex != currentPacketSize) {
+			char currentPayloadChar = packetPayload[packetPayloadIndex];
+			if (currentPayloadChar == SOH || currentPayloadChar == STX || currentPayloadChar == ETX) {
+				packet[i] = DLE;
+				i++;
+			}
+			packet[i] = currentPayloadChar;
+			i++;
+			packetPayloadIndex++;
+		}
+
+		packet[i] = ETX;
+
+	/*	while(packetIndex != currentPacketSize + packetFramingSize) {
 			if (packetIndex == 0) {
 				packet[packetIndex] = SOH;
 			}
 			else if (packetIndex == 1) {
 				packet[packetIndex] = packetNum;
 			}
-			else if(packetIndex == currentPacketSize + 2){
-				packet[packetIndex] = EOP;
+			else if (packetIndex == 2) {
+				packet[packetIndex] = STX;
+			}
+			else if(packetIndex == currentPacketSize + packetFramingSize - 1){
+				packet[packetIndex] = ETX;
 			}
 			else {
+				char currentPayloadChar = packetPayload[packetPayloadIndex];
+				if (currentPayloadChar == SOH || currentPayloadChar == STX || currentPayloadChar == ETX) {
+					packet[packetIndex] = DLE;
+					packetIndex++;
+				}
 				packet[packetIndex] = packetPayload[packetPayloadIndex];
 				packetPayloadIndex++;
 			}
 			packetIndex++;
-		}
+		}*/
 
 		packetBuffer = packet;
 
 		/*cout << "Values in packet: " << endl;
-		for (int i = 0; i < currentPacketSize + 3; i++) {
+		for (int i = 0; i < currentPacketSize + packetFramingSize; i++) {
 			cout << packet[i] << "";
 		}
 		cout << endl;*/
+
+		cout << "Values in packet: " << endl;
+		for (int i = 0; i < currentPacketSize + packetFramingSize; i++) {
+			cout << packet[i];
+		}
+		cout << endl;
+
+
 		gettimeofday(&time, NULL);
 		suseconds_t startWriteUSec = time.tv_usec;
-		bytes = write(socket, packetBuffer, currentPacketSize + 3);
+		bytes = write(socket, packetBuffer, currentPacketSize + packetFramingSize);
 		if(bytes <= 0)
 		{
 			cout << "1. ERROR writing to socket: " << socket << endl;
 			break;
 		}
 		else {
-			totalBytes -= bytes - 3;
+			totalBytes -= bytes - packetFramingSize;
 			bytesWritten += bytes;
 			numPacketsSent++;
 			/*cout << "Client wrote value: " << endl;
@@ -396,7 +460,6 @@ void client(int portNum, int packetSize, int seqNumberRange)
 
 	close(socket);
 }
-
 
 
 //TO RUN SERVER: ./packet 9036 -s
