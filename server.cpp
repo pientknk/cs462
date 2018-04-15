@@ -254,7 +254,6 @@ void server(int portNum)
 
 		cout << "Packet " << packetNum << " received" << endl;
 
-		/***************  Update to make client first send packetseq range amount so we know what to expect for packetnum */
 		numPacketsReceived++;
 		sequenceNumber++;
 		sequenceNumber %= seqNumRange; 
