@@ -117,8 +117,33 @@ int serverSocketAccept(int serverSocket)
 }
 
 //return a string of all characters in the designated file
-string parseFile(string fileName, int fileSize) {
-	ifstream myfile(fileName);
+char* parseFile(string fileName, long fileSize) {
+	FILE *filePtr;
+	filePtr = fopen(fileName.c_str(), "rb");
+	if (filePtr == NULL) {
+		cerr << "ERROR opening file: " << fileName << endl;
+		return "-1";
+	}
+	else {
+		char *buffer = (char*)malloc(sizeof(char)*fileSize);
+		if (buffer == NULL) {
+			cerr << "Memory Error" << endl;
+			return "-1";
+		}
+		else {
+			size_t result = fread(buffer, 1, fileSize, filePtr);
+			if (result != fileSize) {
+				cerr << "Reading File Error" << endl;
+				return "-1";
+			}
+			else {
+				return buffer;
+			}
+		}
+	}
+
+
+	/*ifstream myfile(fileName);
 	if (myfile.good() && myfile.is_open()) {
 		string input((istreambuf_iterator<char>(myfile)), istreambuf_iterator<char>());
 		return input;
@@ -126,10 +151,12 @@ string parseFile(string fileName, int fileSize) {
 	else {
 		cout << "ERROR: Could not open file" << endl;
 		return "-1";
-	}
+	}*/
+
+
 }
 
-int getFileSize(string fileName) {
+long getFileSize(string fileName) {
 	ifstream myfile(fileName, ifstream::binary);
 	if (myfile.good() && myfile.is_open()) {
 		myfile.seekg(0, myfile.end);
@@ -298,8 +325,9 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 	int currentIndex = 0;
 
 	//get file data and setup packet
-	int totalBytes = getFileSize(fileName);
-	string payload = parseFile(fileName, totalBytes);
+	long totalBytes = getFileSize(fileName);
+	char* payload = parseFile(fileName, totalBytes);
+
 	char packet[int(MAX_PACKET_SIZE * 1.5)];
 
 	//Time variables
@@ -329,7 +357,7 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 		}
 
 		/**** WRITING ****/
-		char* packetPayloadPointer = &payload[currentIndex];
+		char* packetPayloadPointer = payload + currentIndex;
 		currentIndex += currentPacketSize;
 		char* packetPayload = new char[currentPacketSize];
 		strncpy(packetPayload, packetPayloadPointer, currentPacketSize);
