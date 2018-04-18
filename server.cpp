@@ -15,6 +15,8 @@
 #include <fstream>
 #include <sys/time.h>
 
+#include <boost/crc.hpp>
+
 using namespace std;
 const char SOH = 0x01; //Start of Header
 const char STX = 0x02; //Start of Text
@@ -23,7 +25,7 @@ const char EOP = 0x7E; //End of Packet
 const char DLE = 0x10; //Data Link Escape
 const char ACK = 0x06; //ACK Ascii character, also (0000 0110)
 const int MAX_PACKET_SIZE = 2048; //payload size
-const int PACKET_FRAME_SIZE = 4; //the amount of bytes needed to frame the packet
+const int PACKET_FRAME_SIZE = 6; //the amount of bytes needed to frame the packet
 const int MAX_SEQ_NUM_RANGE = CHAR_MAX;
 
 //initialize socket for the server
@@ -175,6 +177,10 @@ void server(int portNum)
 	int totalBytes = 0;
 	int bytes = 0;
 	int packetBytes = 0;
+	
+	boost::crc_basic<16>  crcChecker( 0x1021, 0xFFFF, 0, false, false );
+	short crcValue;
+	
 	int ss = serverSocketSetup(portNum);
 	//listen to up to 2 connections
 	listen(ss, 2);
@@ -189,6 +195,7 @@ void server(int portNum)
 
 	//Buffer
 	char* packetBuffer = new char[int(MAX_PACKET_SIZE * 1.5) + PACKET_FRAME_SIZE];
+	char* checksumString = new char[2];
 	
 	//read in the sequence number range
 	int seqNumRange = 0;
@@ -224,6 +231,15 @@ void server(int portNum)
 				packetBytes += bytes;
 				totalBytes += bytes;
 				packetBufferIndex++;
+				
+				if(foundEndOfPacket) {
+					bytes = read(sockfd, packetBuffer + packetBufferIndex, 2);
+					if(bytes <= 0 || bytes != 2) {
+						cout << "1. ERROR reading from socket: " << sockfd << endl;
+						isDone = true;
+						break;
+					}
+				}
 			}
 		}
 
@@ -239,6 +255,8 @@ void server(int portNum)
 				packet += packetChar;
 			}
 		}
+		
+		cout << "Checksum value: " << checksumString << endl;
 
 		packet.erase(0, 1);
 
@@ -323,6 +341,8 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 	char* ackBuffer = &ack;
 	int sequenceNumber = 0;
 	int currentIndex = 0;
+	
+	boost::crc_basic<16>  crcChecker( 0x1021, 0xFFFF, 0, false, false );
 
 	//get file data and setup packet
 	long totalBytes = getFileSize(fileName);
@@ -361,6 +381,8 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 		currentIndex += currentPacketSize;
 		char* packetPayload = new char[currentPacketSize];
 		strncpy(packetPayload, packetPayloadPointer, currentPacketSize);
+		crcChecker.process_bytes(packetPayload, sizeof(packetPayload) / sizeof(packetPayload[0]));
+		//cout << "Checksum: " << crcChecker.checksum() << endl;
 
 		/*for (int i = 0; i < currentPacketSize; i++) {
 			cout << *(packetPayload + i);
@@ -400,6 +422,11 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 
 		//assign end of header
 		packet[i] = ETX;
+		
+		short checksum = crcChecker.checksum();
+		
+		packet[i + 1] = (checksum >> 8);
+		packet[i + 2] = (checksum & 0xFF);
 
 		/*	while(packetIndex != currentPacketSize + PACKET_FRAME_SIZE) {
 			if (packetIndex == 0) {
@@ -426,17 +453,11 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 			packetIndex++;
 		}*/
 
-		/*cout << "Values in packet: " << endl;
+		cout << "Values in packet: " << endl;
 		for (int i = 0; i < currentPacketSize + PACKET_FRAME_SIZE; i++) {
 			cout << packet[i] << "";
 		}
-		cout << endl;*/
-
-		/*cout << "Values in packet: " << endl;
-		for (int i = 0; i < currentPacketSize + PACKET_FRAME_SIZE; i++) {
-			cout << packet[i];
-		}
-		cout << endl;*/
+		cout << endl;
 
 		//get updated time
 		gettimeofday(&time, NULL);
