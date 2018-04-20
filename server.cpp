@@ -170,6 +170,60 @@ long getFileSize(string fileName) {
 	}
 }
  
+ #define CRC16 0x8005
+
+uint16_t gen_crc16(const char *data, uint16_t size)
+{
+    uint16_t out = 0;
+    int bits_read = 0, bit_flag;
+
+    /* Sanity check: */
+    if(data == NULL)
+        return 0;
+
+    while(size > 0)
+    {
+        bit_flag = out >> 15;
+
+        /* Get next bit: */
+        out <<= 1;
+        out |= (*data >> bits_read) & 1; // item a) work from the least significant bits
+
+        /* Increment bit counter: */
+        bits_read++;
+        if(bits_read > 7)
+        {
+            bits_read = 0;
+            data++;
+            size--;
+        }
+
+        /* Cycle check: */
+        if(bit_flag)
+            out ^= CRC16;
+
+    }
+
+    // item b) "push out" the last 16 bits
+    int i;
+    for (i = 0; i < 16; ++i) {
+        bit_flag = out >> 15;
+        out <<= 1;
+        if(bit_flag)
+            out ^= CRC16;
+    }
+
+    // item c) reverse the bits
+    uint16_t crc = 0;
+    i = 0x8000;
+    int j = 0x0001;
+    for (; i != 0; i >>=1, j <<= 1) {
+        if (i & out) crc |= j;
+    }
+
+    return crc;
+}
+ 
 void server(int portNum)
 {
 	int sequenceNumber = 0;
@@ -195,7 +249,6 @@ void server(int portNum)
 
 	//Buffer
 	char* packetBuffer = new char[int(MAX_PACKET_SIZE * 1.5) + PACKET_FRAME_SIZE];
-	char* checksumString = new char[2];
 	
 	//read in the sequence number range
 	int seqNumRange = 0;
@@ -226,20 +279,13 @@ void server(int portNum)
 				char currentChar = *(packetBuffer + packetBufferIndex);
 				if (packetBufferIndex != 0 && currentChar == ETX) {
 					foundEndOfPacket = true;
+					//char checksum1 = (char) *(packetBuffer + packetBufferIndex + 1);
+					//char checksum2 = (char) *(packetBuffer + packetBufferIndex + 2);
 				}
 
 				packetBytes += bytes;
 				totalBytes += bytes;
 				packetBufferIndex++;
-				
-				if(foundEndOfPacket) {
-					bytes = read(sockfd, packetBuffer + packetBufferIndex, 2);
-					if(bytes <= 0 || bytes != 2) {
-						cout << "1. ERROR reading from socket: " << sockfd << endl;
-						isDone = true;
-						break;
-					}
-				}
 			}
 		}
 
@@ -249,40 +295,37 @@ void server(int portNum)
 
 		//create string from buffer somehow
 		string packet;
+		int adjustedPacketSize = 0;
 		for (int i = 0; i < packetBytes; i++) {
 			char packetChar = *(packetBuffer + i);
 			if(!(packetChar == SOH || packetChar == STX || packetChar == ETX || packetChar == DLE)){
+				adjustedPacketSize++;
 				packet += packetChar;
 			}
 		}
-		
-		cout << "Checksum value: " << checksumString << endl;
 
+		char* packet2 = new char[adjustedPacketSize];
+		
+		for (int i = 0; i < packetBytes; i++) {
+			char packetChar = *(packetBuffer + i);
+			if(!(packetChar == SOH || packetChar == STX || packetChar == ETX || packetChar == DLE)){
+				packet2[i] = packetChar;
+			}
+		}	
+		
 		packet.erase(0, 1);
 
 		cout << "Packet string: " << packet << endl;
+		
+		uint16_t value = gen_crc16(packet2, sizeof(packet2));
+		cout << "Value: " << value << endl;
+		uint16_t value2 = gen_crc16(packet2, sizeof(packet2));
+		cout << "Value2: " << value2 << endl;
+		
+		//crcChecker.process_bytes(packet2, sizeof(packet2) / sizeof(packet2[0]));
+		//cout << crcChecker.checksum() << endl;
+		
 		myfile << packet;
-
-		/*cout << "Server got value: " << endl;
-		for (int i = 0; i < packetSize+3; i++) {
-		cout << *(packetBuffer + i) << "";
-		}
-		cout << endl;*/
-
-		//bytes = read(sockfd, packetBuffer, packetSize + PACKET_FRAME_SIZE);
-		//if(bytes <= 0){
-		//	cout << "1. ERROR reading from socket: " << sockfd << endl;
-		//	break;
-		//}
-		//else {
-		//	totalBytes += bytes;
-		//	numPacketsReceived++;
-		//	/*cout << "Server got value: " << endl;
-		//	for (int i = 0; i < bytes; i++) {
-		//		cout << *(packetBuffer + i) << "";
-		//	}
-		//	cout << endl;*/
-		//}
 		
 		/**** WRITING ****/
 		bytes = 0;
@@ -347,8 +390,8 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 	//get file data and setup packet
 	long totalBytes = getFileSize(fileName);
 	char* payload = parseFile(fileName, totalBytes);
-
-	char packet[int(MAX_PACKET_SIZE * 1.5)];
+	
+	char* packet;
 
 	//Time variables
 	struct timeval time;
@@ -363,13 +406,7 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 	if (!write(socket, packetSizePointer, sizeof(int))) {
 		cout << "1. ERROR reading from socket: " << socket << endl;
 	}
-
-	//buffer
-	char* packetBuffer = new char[int(packetSize * 1.5)];
-	for (int i = 0; i < packetSize; i++) {
-		*(packetBuffer + i) = '0';
-	}
-
+	
 	while(totalBytes){
 		int currentPacketSize = packetSize;
 		if (totalBytes < packetSize) {
@@ -381,8 +418,17 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 		currentIndex += currentPacketSize;
 		char* packetPayload = new char[currentPacketSize];
 		strncpy(packetPayload, packetPayloadPointer, currentPacketSize);
-		crcChecker.process_bytes(packetPayload, sizeof(packetPayload) / sizeof(packetPayload[0]));
-		//cout << "Checksum: " << crcChecker.checksum() << endl;
+		cout << "Size of payload: " << sizeof(packetPayload) << endl;
+		
+		/*crcChecker.process_bytes(packetPayload, sizeof(packetPayload));
+		cout << "Checksum: " << crcChecker.checksum() << endl;
+		crcChecker.process_bytes(packetPayload, sizeof(packetPayload));
+		cout << "Checksum2: " << crcChecker.checksum() << endl;*/
+		
+		uint16_t value = gen_crc16(packetPayload, sizeof(packetPayload));
+		cout << "Value: " << value << endl;
+		uint16_t value2 = gen_crc16(packetPayload, sizeof(packetPayload));
+		cout << "Value2: " << value2 << endl;
 
 		/*for (int i = 0; i < currentPacketSize; i++) {
 			cout << *(packetPayload + i);
@@ -390,6 +436,17 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 		cout << endl;*/
 
 		//packet vars
+		int adjustedPayloadSize = 0;
+		for(int i = 0; i < currentPacketSize; i++){
+			adjustedPayloadSize++;
+			char currentPayloadChar = packetPayload[i];
+			if (currentPayloadChar == SOH || currentPayloadChar == STX || currentPayloadChar == ETX) {
+				adjustedPayloadSize++;
+			}
+		}
+		
+		packet = new char[adjustedPayloadSize + PACKET_FRAME_SIZE];
+		
 		char packetNum = '0' + sequenceNumber;
 		int packetIndex = 0;
 		int packetPayloadIndex = 0;
@@ -425,33 +482,8 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 		
 		short checksum = crcChecker.checksum();
 		
-		packet[i + 1] = (checksum >> 8);
-		packet[i + 2] = (checksum & 0xFF);
-
-		/*	while(packetIndex != currentPacketSize + PACKET_FRAME_SIZE) {
-			if (packetIndex == 0) {
-				packet[packetIndex] = SOH;
-			}
-			else if (packetIndex == 1) {
-				packet[packetIndex] = packetNum;
-			}
-			else if (packetIndex == 2) {
-				packet[packetIndex] = STX;
-			}
-			else if(packetIndex == currentPacketSize + PACKET_FRAME_SIZE - 1){
-				packet[packetIndex] = ETX;
-			}
-			else {
-				char currentPayloadChar = packetPayload[packetPayloadIndex];
-				if (currentPayloadChar == SOH || currentPayloadChar == STX || currentPayloadChar == ETX) {
-					packet[packetIndex] = DLE;
-					packetIndex++;
-				}
-				packet[packetIndex] = packetPayload[packetPayloadIndex];
-				packetPayloadIndex++;
-			}
-			packetIndex++;
-		}*/
+		packet[i + 1] = (value >> 8);
+		packet[i + 2] = (value & 0xFF);
 
 		cout << "Values in packet: " << endl;
 		for (int i = 0; i < currentPacketSize + PACKET_FRAME_SIZE; i++) {
@@ -463,8 +495,7 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 		gettimeofday(&time, NULL);
 		suseconds_t startWriteUSec = time.tv_usec;
 
-		packetBuffer = packet;
-		bytes = write(socket, packetBuffer, currentPacketSize + PACKET_FRAME_SIZE);
+		bytes = write(socket, packet, adjustedPayloadSize + PACKET_FRAME_SIZE);
 		if(bytes <= 0)
 		{
 			cout << "1. ERROR writing to socket: " << socket << endl;
@@ -474,11 +505,6 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 			totalBytes -= (bytes - PACKET_FRAME_SIZE);
 			bytesWritten += bytes;
 			numPacketsSent++;
-			/*cout << "Client wrote value: " << endl;
-			for (int i = 0; i < bytes; i++) {
-				cout << *(packetBuffer + i) << "";
-			}
-			cout << endl;*/
 
 			cout << "Packet " << sequenceNumber << " sent" << endl;
 		}
@@ -491,12 +517,6 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 			break;
 		}
 		else {
-			/*cout << "Client got ACK: " << endl;
-			for (int i = 0; i < bytes; i++) {
-				cout << *(ackBuffer + i) << "";
-			}
-			cout << endl;*/
-
 			//Get update time
 			gettimeofday(&time, NULL);
 			suseconds_t endWriteUSec = time.tv_usec;
