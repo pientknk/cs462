@@ -150,7 +150,7 @@ char* parseFile(string fileName, long fileSize) {
 		return "-1";
 	}
 	else {
-		char *buffer = (char*)malloc(sizeof(char)*fileSize);
+		char *buffer = new char[fileSize];
 		if (buffer == NULL) {
 			cerr << "Memory Error" << endl;
 			return "-1";
@@ -167,18 +167,7 @@ char* parseFile(string fileName, long fileSize) {
 		}
 	}
 
-
-	/*ifstream myfile(fileName);
-	if (myfile.good() && myfile.is_open()) {
-		string input((istreambuf_iterator<char>(myfile)), istreambuf_iterator<char>());
-		return input;
-	}
-	else {
-		cout << "ERROR: Could not open file" << endl;
-		return "-1";
-	}*/
-
-
+	fclose(filePtr);
 }
 
 long getFileSize(string fileName) {
@@ -327,7 +316,8 @@ void server(int portNum)
 			break;
 		}
 
-		cout << "Values in Packet (" << packetBytes << " bytes): " << endl;
+		// the read in data for the entire packet
+		/*cout << "Values in Packet (" << packetBytes << " bytes): " << endl;
 		for (int i = 0; i < packetBytes; i++) {
 			char character = *(packetBuffer + i);
 			if (character == SOH || character == STX || character == ETX || character == DLE || character == NUL) {
@@ -337,23 +327,10 @@ void server(int portNum)
 				cout << character;
 			}
 		}
-		cout << endl;
-
-		/*cout << "Modified Values in Packet" << endl;
-		int actualPacketSize = 0;
-		for (int i = 3; i < packetBytes - 1; i++) {
-			char character = *(packetBuffer + i);
-			if (character == SOH || character == STX || character == ETX || character == DLE || character == NUL) {
-				cout << "*";
-			}
-			else {
-				cout << character;
-				actualPacketSize++;
-			}
-		}
 		cout << endl;*/
 
-		//create string from buffer somehow
+		
+		//get accurate payload size after checking for DLE's
 		string packet;
 		int payloadSize = packetBytes - PACKET_FRAME_SIZE;
 		//cout << "Payload size: " << payloadSize << endl;
@@ -371,6 +348,7 @@ void server(int portNum)
 			}
 		}
 
+		//create string from buffer somehow
 		char* packet2 = new char[adjustedPayloadSize];
 		int packet2Index = 0;
 		for (int i = 3; i < payloadSize + 3; i++) {
@@ -389,21 +367,51 @@ void server(int portNum)
 			}
 		}
 
-		//cout << "Packet 2 index: " << packet2Index << endl;
+		uint16_t checkSumValue = gen_crc16(packet2, payloadSize);
+		cout << "Checksum of packet char*: " << checkSumValue << endl;
 
-		//cout << "Packet string (" << sizeof(packet) << " bytes): " << endl << packet << endl;
+		//cout << "Read in checksum: " << (char)*(packetBuffer + packetBufferIndex - 2) << " and " << (char)*(packetBuffer + packetBufferIndex - 1) << endl;
 
-		uint16_t value = gen_crc16(packet.c_str(), payloadSize);
-		cout << "Checksum of packet string: " << value << endl;
-		uint16_t value2 = gen_crc16(packet2, payloadSize);
+		char chksum1 = (checkSumValue >> 8);
+		char chksum2 = (checkSumValue & 0xFF);
+		//cout << "Calculated checksum: " << chksum1 << endl;
+		//cout << "Calculated checksum: " << chksum2 << endl;
 
-	/*	cout << "**** Values in Payload (" << adjustedPayloadSize << " bytes): " << endl;
+		//checksum is good
+		if (chksum1 == *(packetBuffer + packetBufferIndex - 2) && chksum2 == *(packetBuffer + packetBufferIndex - 1)) {
+			//append to the file
+			myfile << packet;
+
+			/**** WRITING ****/
+			bytes = 0;
+
+			cout << "Packet " << packetNum << " received" << endl;
+
+			numPacketsReceived++;
+			sequenceNumber++;
+			sequenceNumber %= seqNumRange;
+
+			//send ack over to client with packet number
+			char* ackMsg = &packetNum;
+
+			if (!write(sockfd, ackMsg, sizeof(packetNum))) {
+				cout << "2. ERROR writing to socket: " << sockfd << endl;
+				break;
+			}
+			else {
+				cout << "Ack " << packetNum << " sent" << endl;
+			}
+		}
+
+		//printout of payload after taking out any DLE's
+		/*	cout << "**** Values in Payload (" << adjustedPayloadSize << " bytes): " << endl;
 		for (int i = 0; i < adjustedPayloadSize; i++) {
 			cout << packet2[i];
 		}
 		cout << endl;*/
 
-		cout << "**** Values in Payload (" << adjustedPayloadSize << " bytes): " << endl;
+		//print out value of payload with * to represent our special characters and NUL
+		/*cout << "**** Values in Payload (" << adjustedPayloadSize << " bytes): " << endl;
 		for (int i = 0; i < adjustedPayloadSize; i++) {
 			char character = packet2[i];
 			if (character == SOH || character == STX || character == ETX || character == DLE || character == NUL) {
@@ -413,35 +421,11 @@ void server(int portNum)
 				cout << character;
 			}
 		}
-		cout << endl;
+		cout << endl;*/
 
-		cout << "Checksum of packet char*: " << value2 << endl;
-
-		//crcChecker.process_bytes(packet2, sizeof(packet2));
-		//cout << crcChecker.checksum() << endl;
-
-		//append to the file
-		myfile << packet;
-
-		/**** WRITING ****/
-		bytes = 0;
-
-		cout << "Packet " << packetNum << " received" << endl;
-
-		numPacketsReceived++;
-		sequenceNumber++;
-		sequenceNumber %= seqNumRange;
-
-		//send ack over to client with packet number
-		char* ackMsg = &packetNum;
-
-		if (!write(sockfd, ackMsg, sizeof(packetNum))) {
-			cout << "2. ERROR writing to socket: " << sockfd << endl;
-			break;
-		}
-		else {
-			cout << "Ack " << packetNum << " sent" << endl;
-		}
+		//boost checksum
+		/*crcChecker.process_bytes(packet2, sizeof(packet2));
+		cout << crcChecker.checksum() << endl;*/
 
 		//cout << "To: thing2.cs.uwec.edu" << endl << endl;
 	}
@@ -597,14 +581,12 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 		//assign end of header
 		packet[i] = ETX;
 
-		short checksum = crcChecker.checksum();
-
 		packet[i + 1] = (value >> 8);
 		packet[i + 2] = (value & 0xFF);
 		//cout << "Setting checsum to: " << (value >> 8) << " and " << (value & 0xFF) << endl;
 
 		//print off values of packet
-		cout << "Values in Packet: " << endl;
+		/*cout << "Values in Packet: " << endl;
 		for (int i = 0; i < (adjustedPayloadSize + PACKET_FRAME_SIZE); i++) {
 			char character = *(packet + i);
 			if (character == SOH || character == STX || character == ETX || character == DLE || character == NUL) {
@@ -614,7 +596,7 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 				cout << character;
 			}
 		}
-		cout << endl;
+		cout << endl;*/
 
 		//get updated time
 		suseconds_t startWriteUSec = timer.GetTimeInMicroSeconds();
