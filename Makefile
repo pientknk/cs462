@@ -1,9 +1,9 @@
 CC = g++
 CFLAGS =  -std=c++11 -lm -pedantic
 
-CCFILES = main.cpp server.cpp client.cpp packet.cpp files.cpp crc16Checksum.cpp timer.cpp
+CCFILES = main.cpp server.cpp client.cpp packet.cpp files.cpp crc16Checksum.cpp timer.cpp userinput.cpp
 
-OFILES = main.o server.o client.o packet.o files.o crc16Checksum.o timer.o
+OFILES = main.o server.o client.o packet.o files.o crc16Checksum.o timer.o userinput.o
 
 all: link
 
