@@ -4,6 +4,8 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <vector>
+#include <sstream>
 
 #include "constants.h"
 
@@ -38,5 +40,15 @@ int GetSlidingWindowSize();
 int GetSituationalErrorType();
 
 int GetErrorControlType();
+
+int GetNumberOfPacketsToDropOrDamage(int maxNumberOfPackets, bool isDropping);
+
+vector<int> GetAllPacketsToDropOrDamage(int numPacketsToDrop, bool isDropping);
+
+int GetNumberOfAcksToLose(int maxNumberOfPackets);
+
+vector<int> GetAllAcksLost(int numAcksLost);
+
+void GetMultipleErrorsFromUser(int maxNumberOfPackets, vector<int>& droppedPackets, vector<int>& damagedPackets, vector<int>& acksLost);
 
 #endif

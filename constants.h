@@ -13,5 +13,7 @@ const char ACK = 0x06; //ACK Ascii character, also (0000 0110)
 const int MAX_PACKET_SIZE = 60000; //payload size
 const int PACKET_FRAME_SIZE = 6; //the amount of bytes needed to frame the packet
 const int MAX_SEQ_NUM_RANGE = CHAR_MAX;
+const int MAX_TIMEOUT = 5000000; // the max amount of microseconds for a timeout
+const int MIN_TIMEOUT = 1; // the min time for a packet timeout in microseconds
 
 #endif

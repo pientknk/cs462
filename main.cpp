@@ -1,5 +1,6 @@
 #include "server.h"
 #include "client.h"
+#include "userinput.h"
 
 //TO RUN SERVER: ./packet 9036 -s
 //TO RUN CLIENT: ./packet 9036 -c
