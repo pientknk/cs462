@@ -9,8 +9,8 @@
 
 using namespace std;
 
-char* parseFile(string fileName, long fileSize);
+char* ParseFile(string fileName, long fileSize);
 
-long getFileSize(string fileName);
+long GetFileSize(string fileName);
 
 #endif

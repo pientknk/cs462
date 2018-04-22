@@ -15,5 +15,9 @@ const int PACKET_FRAME_SIZE = 6; //the amount of bytes needed to frame the packe
 const int MAX_SEQ_NUM_RANGE = CHAR_MAX;
 const int MAX_TIMEOUT = 5000000; // the max amount of microseconds for a timeout
 const int MIN_TIMEOUT = 1; // the min time for a packet timeout in microseconds
+const int DEFAULT_PACKET_SIZE = 512;
+const int DEFAULT_SEQ_NUM_RANGE = 32;
+const int DEFAULT_TIMEOUT = 2000000;
+const int MAX_TRANSMISSION_ATTEMPTS = 5;
 
 #endif

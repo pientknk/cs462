@@ -165,8 +165,8 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 	setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &sockTimeout, sizeof(struct timeval));
 
 	//get file data and setup packet
-	totalBytes_c = getFileSize(fileName);
-	payload = parseFile(fileName, totalBytes_c);
+	totalBytes_c = GetFileSize(fileName);
+	payload = ParseFile(fileName, totalBytes_c);
 
 	//print out file contents
 	/*cout << "Value of File: " << endl;

@@ -4,7 +4,7 @@
 #include "filehandler.h"
 
 //return a string of all characters in the designated file
-char* parseFile(string fileName, long fileSize) {
+char* ParseFile(string fileName, long fileSize) {
 	FILE *filePtr;
 	filePtr = fopen(fileName.c_str(), "rb");
 	if (filePtr == NULL) {
@@ -32,7 +32,7 @@ char* parseFile(string fileName, long fileSize) {
 	fclose(filePtr);
 }
 
-long getFileSize(string fileName) {
+long GetFileSize(string fileName) {
 	ifstream myfile(fileName, ifstream::binary);
 	if (myfile.good() && myfile.is_open()) {
 		myfile.seekg(0, myfile.end);

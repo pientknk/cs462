@@ -17,17 +17,17 @@ const string Protocols[] = { "0", "1", "2" };
 enum TOInterval { US, PC }; //User Specified, Ping Calculated
 const string TOIntervals[] = { "0", "1" };
 
-enum SitError { NO, RG, USP }; // None, Randomly Generated, User Specified
+enum SitError { USP, RG, NO,  }; // None, Randomly Generated, User Specified
 const string SitErrors[] = { "0", "1", "2" };
 
 enum ErrorControl { PL, PD, AL, ML }; //Packet Loss, Packet Damage, Ack Lost, Multiple
-const string ErrorControls[] = { "0", "1", "2" };
+const string ErrorControls[] = { "0", "1", "2", "3" };
 
 string GetFileName();
 
 int GetPacketSize();
 
-int GetSequenceNumberRange();
+int GetSequenceNumberRange(int maxPackets);
 
 int GetProtocol();
 
@@ -35,7 +35,7 @@ int GetTimeOutIntervalMethod();
 
 int GetTimeOutFromUser();
 
-int GetSlidingWindowSize();
+int GetSlidingWindowSize(int maxPackets);
 
 int GetSituationalErrorType();
 
@@ -47,7 +47,7 @@ vector<int> GetAllPacketsToDropOrDamage(int numPacketsToDrop, bool isDropping);
 
 int GetNumberOfAcksToLose(int maxNumberOfPackets);
 
-vector<int> GetAllAcksLost(int numAcksLost);
+vector<int> GetAllAcksToLose(int numAcksLost);
 
 void GetMultipleErrorsFromUser(int maxNumberOfPackets, vector<int>& droppedPackets, vector<int>& damagedPackets, vector<int>& acksLost);
 

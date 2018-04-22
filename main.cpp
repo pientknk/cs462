@@ -6,8 +6,6 @@
 //TO RUN CLIENT: ./packet 9036 -c
 int main(int argc, char **argv) {
 	if (argc == 3) {
-		int packetSizeInBytes = MAX_PACKET_SIZE;
-		int seqNumberRange = MAX_SEQ_NUM_RANGE;
 		char* ptr;
 		// Max limit cannot be more than 2,147,483,647
 		unsigned long portNum = strtol(argv[1], &ptr, 10); //returns 0 if argv[1] cannot be converted to an integer
@@ -20,51 +18,80 @@ int main(int argc, char **argv) {
 				server(portNum);
 			}
 			else if (!strcmp(argv[2], "-c")) {
-				//GET the file to send
-				bool validFile = false;
-				string fileName;
-				while (!validFile) {
-					cout << "Please give the name of the file to send: " << endl;
-					cin >> fileName;
-					ifstream myfile(fileName);
-					if (myfile.good() && myfile.is_open()) {
-						validFile = true;
-					}
-					else {
-						cout << "\nERROR: unable to open file: " << fileName << endl;
-					}
+				int packetSizeInBytes = DEFAULT_PACKET_SIZE;
+				int seqNumberRange = DEFAULT_SEQ_NUM_RANGE;
+
+				string fileName = GetFileName();
+				packetSizeInBytes = GetPacketSize();
+
+				unsigned long maxPackets = ceil((double)GetFileSize(fileName) / (double)packetSizeInBytes);
+
+				int protocol = GetProtocol();
+				int slidingWindowSize = 0;
+				if (protocol == Protocol::GBN || protocol == Protocol::SR) {
+					slidingWindowSize = GetSlidingWindowSize(maxPackets);
 				}
-				size_t* st;
-				// GET Packet size from user
-				bool validPacketSize = false;
-				string tempPacketSize;
-				while (!validPacketSize) {
-					cout << "Please specify a packet size in bytes: " << endl;
-					cin >> tempPacketSize;
-					packetSizeInBytes = stoi(tempPacketSize, st, 10);
-					if (packetSizeInBytes >= 1 && packetSizeInBytes <= MAX_PACKET_SIZE - PACKET_FRAME_SIZE) {
-						validPacketSize = true;
+
+				int intervalMethod = GetTimeOutIntervalMethod();
+				int intervalTimeInMicroseconds = -1;
+				if (intervalMethod == TOInterval::US) {
+					intervalTimeInMicroseconds = GetTimeOutFromUser();
+				}
+				else { //ping calculated
+					//use ping to pick a good timeout? or pass in -1 so that the client know that it needs to figure it out
+				}
+
+				seqNumberRange = GetSequenceNumberRange(maxPackets);
+				int situationalErrorType = GetSituationalErrorType();
+				vector<int> acksToLose;
+				vector<int> packetsToDamage;
+				vector<int> packetsToDrop;
+
+				if (situationalErrorType == SitError::USP) {
+					int errorControlType = GetErrorControlType();
+					//ack lost
+					if (errorControlType == ErrorControl::AL) {
+						int numAcksToLose = GetNumberOfAcksToLose(maxPackets);
+						acksToLose = GetAllAcksToLose(numAcksToLose);
 					}
+					//packet damage
+					else if (errorControlType == ErrorControl::PD) {
+						int numPacketsToDamage = GetNumberOfPacketsToDropOrDamage(maxPackets, false);
+						packetsToDamage = GetAllPacketsToDropOrDamage(numPacketsToDamage, false);
+					}
+					//packet loss/drop
+					else if (errorControlType == ErrorControl::PL) {
+						int numPacketsToDamage = GetNumberOfPacketsToDropOrDamage(maxPackets, true);
+						packetsToDrop = GetAllPacketsToDropOrDamage(numPacketsToDamage, true);
+					}
+					//multiple
 					else {
-						cout << "\nERROR: Packet size must be between 1 and " << MAX_PACKET_SIZE - PACKET_FRAME_SIZE << " bytes, but you said: '" << tempPacketSize << "'" << endl;
+						GetMultipleErrorsFromUser(maxPackets, packetsToDrop, packetsToDamage, acksToLose);
 					}
 				}
 
-				// GET range of sequence numbers from user
-				bool choseSeqNumRange = false;
-				string seqNumRange;
-				while (!choseSeqNumRange) {
-					cout << "Please specify the range of sequence numbers: " << endl;
-					cin >> seqNumRange;
-					seqNumberRange = stoi(seqNumRange, st, 10);
-					cout << endl;
-					if (seqNumberRange >= 1 && seqNumberRange <= MAX_SEQ_NUM_RANGE) {
-						choseSeqNumRange = true;
-					}
-					else {
-						cout << "\nERROR: Sequence number range must be within 1-" << MAX_SEQ_NUM_RANGE << ", but you said: '" << seqNumberRange << "'" << endl;
-					}
+				cout << "Acks to lose: ";
+				for(int value : acksToLose)
+				{
+					cout << value << ", ";
 				}
+				cout << endl;
+
+				cout << "Packets to damage: ";
+				for(int value : packetsToDamage)
+				{
+					cout << value << ", ";
+				}
+				cout << endl;
+
+				cout << "Packets to drop: ";
+				for(int value : packetsToDrop)
+				{
+					cout << value << ", ";
+				}
+				cout << endl;
+
+
 				client(portNum, packetSizeInBytes, seqNumberRange, fileName);
 			}
 			else {

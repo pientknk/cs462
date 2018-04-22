@@ -2,10 +2,11 @@
 
 //global variables
 size_t* st;
+char* charPtr;
 locale loc;
 string input;
 bool hasValidInput;
-const string NANERROR = "\nERROR: You must enter a number";
+const string NANERROR = "\nERROR: You must enter a number and it has to be greater than 0";
 
 string GetFileName() {
 	hasValidInput = false;
@@ -32,8 +33,8 @@ int GetPacketSize() {
 	while (!hasValidInput) {
 		cout << "Please specify a packet size in bytes: " << endl;
 		cin >> input;
-		if (isdigit(input, loc)) {
-			packetSizeInBytes = stoi(input, st, 10);
+		packetSizeInBytes = strtol(input.c_str(), &charPtr, 10);
+		if (packetSizeInBytes) {
 			if (packetSizeInBytes >= 1 && packetSizeInBytes <= MAX_PACKET_SIZE) {
 				hasValidInput = true;
 			}
@@ -49,15 +50,15 @@ int GetPacketSize() {
 	return packetSizeInBytes;
 }
 
-int GetSequenceNumberRange() {
+int GetSequenceNumberRange(int maxPackets) {
 	hasValidInput = false;
 	int seqNumberRange = 0;
 	input = "";
 	while (!hasValidInput) {
-		cout << "Please specify the range of sequence numbers: " << endl;
+		cout << "Please specify the range of sequence numbers: (Current number of Packets: " << maxPackets << ")" << endl;
 		cin >> input;
-		if (isdigit(input, loc)) {
-			seqNumberRange = stoi(input, st, 10);
+		seqNumberRange = strtol(input.c_str(), &charPtr, 10);
+		if (seqNumberRange) {
 			if (seqNumberRange >= 1 && seqNumberRange <= MAX_SEQ_NUM_RANGE) {
 				hasValidInput = true;
 			}
@@ -118,13 +119,13 @@ int GetTimeOutFromUser() {
 	while (!hasValidInput) {
 		cout << "How long should the timeout be in microseconds?" << endl;
 		cin >> input;
-		if (isdigit(input, loc)) {
-			theInterval = stoi(input, st, 10);
+		theInterval = strtol(input.c_str(), &charPtr, 10);
+		if (theInterval) {
 			if (theInterval >= MIN_TIMEOUT && theInterval <= MAX_TIMEOUT) {
 				hasValidInput = true;
 			}
 			else {
-				cout << "\nERROR: You must enter a number that is between " << MIN_TIMEOUT << " and " << MAX_TIMEOUT << "(" << (double)MAX_TIMEOUT / (double)1000000 << " sec) microseconds" << endl;
+				cout << "\nERROR: You must enter a number that is between " << MIN_TIMEOUT << " and " << MAX_TIMEOUT <<  " microseconds (" << (double)MAX_TIMEOUT / (double)1000000 << " sec)" << endl;
 			}
 		}
 		else {
@@ -135,29 +136,24 @@ int GetTimeOutFromUser() {
 	return theInterval;
 }
 
-int GetSlidingWindowSize() {
+int GetSlidingWindowSize(int maxPackets) {
 	hasValidInput = false;
 	input = "";
 	int size = 1;
 	while (!hasValidInput) {
-		cout << "What should the Sliding Window Size be?" << endl;
+		cout << "What should the Sliding Window Size be? (Current number of Packets: " << maxPackets << ")" << endl;
 		cin >> input;
-		if (isdigit(input, loc)) {
-			size = stoi(input, st, 10);
-			if (size > 0 && size <= 16) {
-				if (size != 1 && size % 2 != 0) {
-					cout << "\nERROR: You must enter a number that is between 1 and 16 and a multiple of 2" << endl;
-				}
-				else {
-					hasValidInput = true;
-				}
+		size = strtol(input.c_str(), &charPtr, 10);
+		if (size > 0 && size <= 16) {
+			if (size != 1 && size % 2 != 0) {
+				cout << "\nERROR: You must enter a number that is between 1 and 16 and a multiple of 2" << endl;
 			}
 			else {
-				cout << "\nERROR: You must enter a number that is between 1 and 16 and a multiple of 2" << endl;
+				hasValidInput = true;
 			}
 		}
 		else {
-			cout << NANERROR << endl;
+			cout << "\nERROR: You must enter a number that is between 1 and 16 and a multiple of 2" << endl;
 		}
 	}
 
@@ -169,7 +165,7 @@ int GetSituationalErrorType() {
 	input = "";
 	int errorType = SitError::NO;
 	while (!hasValidInput) {
-		cout << "Please select a Situational Error Type. 0 for None, 1 for Randomly Generated, or 2 for User-Specified" << endl;
+		cout << "Please select a Situational Error Type. 0 for User-Specified, 1 for Randomly Generated, or 2 for None" << endl;
 		cin >> input;
 		if (input == SitErrors[SitError::NO] || input == SitErrors[SitError::RG] || input == SitErrors[SitError::USP]) {
 			errorType = stoi(input, st, 10);
@@ -188,7 +184,7 @@ int GetErrorControlType() {
 	input = "";
 	int errorType = ErrorControl::AL;
 	while (!hasValidInput) {
-		cout << "Please select an Error Control Type. 0 for Packet Loss, 1 for Packet Damage, or 2 for Ack Loss or 3 for multiple" << endl;
+		cout << "Please select an Error Control Type. 0 for Packet Loss, 1 for Packet Damage, 2 for Ack Loss, or 3 for multiple" << endl;
 		cin >> input;
 		if (input == ErrorControls[ErrorControl::AL] || input == ErrorControls[ErrorControl::ML] || input == ErrorControls[ErrorControl::PD] || input == ErrorControls[ErrorControl::PL]) {
 			errorType = stoi(input, st, 10);
@@ -202,21 +198,21 @@ int GetErrorControlType() {
 	return errorType;
 }
 
-int GetNumberOfPacketsToDropOrDamage(int maxNumberOfPackets, bool isDroppping) {
+int GetNumberOfPacketsToDropOrDamage(int maxNumberOfPackets, bool isDropping) {
 	hasValidInput = false;
 	input = "";
 	int numberOfPackets = 0;
 	while (!hasValidInput) {
-		if (isDroppping) {
-			cout << "How many packets do you want to DROP?" << endl;
+		if (isDropping) {
+			cout << "How many packets do you want to DROP? (Current number of Packets: " << maxNumberOfPackets << ")" << endl;
 		}
 		else {
-			cout << "How many packets do you want to DAMAGE?" << endl;
+			cout << "How many packets do you want to DAMAGE? (Current number of Packets: " << maxNumberOfPackets << ")" << endl;
 		}
 		
 		cin >> input;
-		if (isdigit(input, loc)) {
-			numberOfPackets = stoi(input, st, 10);
+		numberOfPackets = strtol(input.c_str(), &charPtr, 10);
+		if (numberOfPackets) {
 			if (numberOfPackets > 0 && numberOfPackets <= maxNumberOfPackets) {
 				hasValidInput = true;
 			}
@@ -238,10 +234,10 @@ vector<int> GetAllPacketsToDropOrDamage(int numPacketsToDrop, bool isDropping) {
 	vector<int> packetsToDrop;
 	while (!hasValidInput) {
 		if (isDropping) {
-			cout << "Please give a list of the packets you would like to DROP. For example: 1,4,9,15" << endl;
+			cout << "Please give a list of the packets you would like to DROP. For example: 1,4,9,15 (Current number of Packets: " << numPacketsToDrop << ")" << endl;
 		}
 		else {
-			cout << "Please give a list of the packets you would like to DAMAGE. For example: 1,4,9,15" << endl;
+			cout << "Please give a list of the packets you would like to DAMAGE. For example: 1,4,9,15 (Current number of Packets: " << numPacketsToDrop << ")" << endl;
 		}
 		
 		cin >> input;
@@ -249,8 +245,9 @@ vector<int> GetAllPacketsToDropOrDamage(int numPacketsToDrop, bool isDropping) {
 		while (ss.good()) {
 			string substr;
 			getline(ss, substr, ',');
-			if (isdigit(substr, loc)) {
-				packetsToDrop.push_back(stoi(substr, st, 10));
+			int value = strtol(substr.c_str(), &charPtr, 10);
+			if (value) {
+				packetsToDrop.push_back(value);
 			}
 			else {
 				cout << NANERROR << endl;
@@ -275,38 +272,34 @@ int GetNumberOfAcksToLose(int maxNumberOfPackets) {
 	input = "";
 	int numberOfAcks = 0;
 	while (!hasValidInput) {
-		cout << "How many ACKS do you want to LOSE?" << endl;
+		cout << "How many ACKS do you want to LOSE? (Current number of Packets: " << maxNumberOfPackets << ")" << endl;
 		cin >> input;
-		if (isdigit(input, loc)) {
-			numberOfAcks = stoi(input, st, 10);
-			if (numberOfAcks > 0 && numberOfAcks <= maxNumberOfPackets) {
-				hasValidInput = true;
-			}
-			else {
-				cout << "\nERROR: You must enter a number that is between 1 and " << maxNumberOfPackets << endl;
-			}
+		numberOfAcks = strtol(input.c_str(), &charPtr, 10);
+		if (numberOfAcks > 0 && numberOfAcks <= maxNumberOfPackets) {
+			hasValidInput = true;
 		}
 		else {
-			cout << NANERROR << endl;
+			cout << "\nERROR: You must enter a number that is between 1 and " << maxNumberOfPackets << endl;
 		}
 	}
 
 	return numberOfAcks;
 }
 
-vector<int> GetAllAcksLost(int numAcksLost) {
+vector<int> GetAllAcksToLose(int numAcksLost) {
 	hasValidInput = false;
 	input = "";
 	vector<int> acksToDrop;
 	while (!hasValidInput) {
-		cout << "Please give a list of the ACKS you would like to LOSE. For example: 1,4,9,15" << endl;
+		cout << "Please give a list of the ACKS you would like to LOSE. For example: 1,4,9,15 (Current number of Packets: " << numAcksLost << ")" << endl;
 		cin >> input;
 		stringstream ss(input);
 		while (ss.good()) {
 			string substr;
 			getline(ss, substr, ',');
-			if (isdigit(substr, loc)) {
-				acksToDrop.push_back(stoi(substr, st, 10));
+			int value = strtol(substr.c_str(), &charPtr, 10);
+			if (value) {
+				acksToDrop.push_back(value);
 			}
 			else {
 				cout << NANERROR << endl;
@@ -337,7 +330,7 @@ void GetMultipleErrorsFromUser(int maxNumberOfPackets, vector<int>& droppedPacke
 
 	//get acks to lose
 	int numAcksToLose = GetNumberOfAcksToLose(maxNumberOfPackets);
-	acksLost = GetAllAcksLost(numAcksToLose);
+	acksLost = GetAllAcksToLose(numAcksToLose);
 }
 
 //TO RUN SERVER: ./packet 9036 -s
