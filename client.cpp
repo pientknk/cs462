@@ -18,6 +18,10 @@ Timer timer;
 suseconds_t startWriteUSec;
 time_t sendTime;
 
+//Error introduction variables
+bool sendWrongChecksums = true;
+int j;
+
 int callServer(string host, int portNum) {
 	const char* constHost = host.c_str();
 	//socket pointer
@@ -133,8 +137,24 @@ int writePacket() {
 		//assign end of header
 		packet_c[i] = ETX;
 
-		packet_c[i + 1] = (value >> 8);
-		packet_c[i + 2] = (value & 0xFF);
+		if(sendWrongChecksums) {
+			if(j == 2) {
+				packet_c[i + 1] = (value >> 8);
+				packet_c[i + 2] = (value & 0xFF);
+				
+				j = 0;
+			}
+			else {
+				packet_c[i + 1] = (value >> 6);
+				packet_c[i + 2] = (value & 0x7B);
+				
+				j++;
+			}
+		}
+		else {
+			packet_c[i + 1] = (value >> 8);
+			packet_c[i + 2] = (value & 0xFF);
+		}
 		//cout << "Setting checsum to: " << (value >> 8) << " and " << (value & 0xFF) << endl;
 
 		//print off values of packet
@@ -161,7 +181,7 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 	socket_ = callServer("thing3.cs.uwec.edu", portNum);
 	
 	struct timeval sockTimeout;
-	sockTimeout.tv_sec = 2;
+	sockTimeout.tv_sec = 1;
 	setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &sockTimeout, sizeof(struct timeval));
 
 	//get file data and setup packet
@@ -220,9 +240,9 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 
 		if (bytes_c <= 0) {	
 			//cout << "2. ERROR reading from socket: " << socket_ << endl;
-			if(timer.GetTimeInSeconds() - sendTime >= 2) {
-				cout << "Packet " << sequenceNumber_c << "**** Timed Out *****" << endl;
-				cout << "Packet " << sequenceNumber_c << "Re-transmitted" << endl;
+			if(timer.GetTimeInSeconds() - sendTime >= 1) {
+				cout << "Packet " << sequenceNumber_c << " **** Timed Out *****" << endl;
+				cout << "Packet " << sequenceNumber_c << " Re-transmitted" << endl;
 				bytesResent += bytesSent;
 			}
 			else {
