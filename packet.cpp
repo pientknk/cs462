@@ -1,9 +1,16 @@
+#ifndef PACKET
+#define PACKET
 
-//if we want this as a class rather than a struct
-Packet::Packet(uint8_t sof) {
-	this->sof = sof;
-}
+#include "timer.cpp"
 
-void Packet::getSof() {
-	this->sof = sof;
-}
+typedef struct Packet {
+	int SOHIndex = 0;
+	int seqNumIndex = 1;
+	int SeqNum;
+	int STXIndex = 2;
+	const char* data;
+	int PayloadIndex = 3;
+	suseconds_t startTimeUSecs;
+} Packet;
+
+#endif
