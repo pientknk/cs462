@@ -4,6 +4,7 @@ int sockfd;
 string packet_s;
 char* packet2;
 char packetNum;
+char lastPacketNum = '_';
 int packetBytes;
 char* packetBuffer;
 int packetBufferIndex;
@@ -13,6 +14,8 @@ int bytes_s;
 int totalBytes_s;
 bool foundEndOfPacket;
 bool isDone;
+
+int i;
 
 //initialize socket for the server
 int serverSocketSetup(int portNum) {
@@ -56,6 +59,7 @@ int serverSocketAccept(int serverSocket)
 	cout << "Waiting for a call..." << endl;
 	sockfd = accept(serverSocket, (struct sockaddr *) &cli_addr, &clilen);
 	cout << "Connected" << endl;
+	cout << endl;
 	if (sockfd < 0) {
 		cerr << "ERROR accepting connection" << endl;
 		exit(1);
@@ -135,10 +139,6 @@ void generatePacket() {
 	}
 }
 
-void sendAck() {
-	
-}
-
 void server(int portNum)
 {
 	sequenceNumber_s = 0;
@@ -184,14 +184,12 @@ void server(int portNum)
 		while (!foundEndOfPacket) {
 		bytes_s = read(sockfd, packetBuffer + packetBufferIndex, 1); //if slow, read in as much as we can and loop through the buffer to see if there is an ETX
 		if (bytes_s <= 0) {
-			cout << "1. ERROR reading from socket: " << sockfd << endl;
+			//cout << "1. ERROR reading from socket: " << sockfd << endl;
 			isDone = true;
 			break;
 		}
 		else {
 			packetBytes += bytes_s;
-			totalBytes_s += bytes_s;
-
 
 			//get current char to check if this is the end of the packet
 			char currentChar = *(packetBuffer + packetBufferIndex);
@@ -201,7 +199,6 @@ void server(int portNum)
 				//read in the checksum
 				bytes_s = read(sockfd, packetBuffer + packetBufferIndex + 1, 2);
 				packetBytes += bytes_s;
-				totalBytes_s += bytes_s;
 				packetBufferIndex += bytes_s;
 			}
 
@@ -212,6 +209,8 @@ void server(int portNum)
 		}
 	}
 		if (isDone) {
+			//append to the file
+			myfile << packet_s;
 			break;
 		}
 
@@ -228,10 +227,13 @@ void server(int portNum)
 		}
 		cout << endl;*/
 
+		cout << "Packet " << packetNum << " received" << endl;
+		numPacketsReceived++;
+		
 		generatePacket();
 
 		uint16_t checkSumValue = gen_crc16(packet2, payloadSize);
-		cout << "Checksum of packet char*: " << checkSumValue << endl;
+		//cout << "Checksum of packet char*: " << checkSumValue << endl;
 
 		//cout << "Read in checksum: " << (char)*(packetBuffer + packetBufferIndex - 2) << " and " << (char)*(packetBuffer + packetBufferIndex - 1) << endl;
 
@@ -242,28 +244,38 @@ void server(int portNum)
 
 		//checksum is good
 		if (chksum1 == *(packetBuffer + packetBufferIndex - 2) && chksum2 == *(packetBuffer + packetBufferIndex - 1)) {
-			//append to the file
-			myfile << packet_s;
-
+			cout << "Checksum for Packet " << packetNum << " was OK" << endl;
+			
 			/**** WRITING ****/
 			bytes_s = 0;
-
-			cout << "Packet " << packetNum << " received" << endl;
-
-			numPacketsReceived++;
-			sequenceNumber_s++;
-			sequenceNumber_s %= seqNumRange;
+			
+			if(packetNum != lastPacketNum) {
+				lastPacketNum = packetNum;
+			}
 
 			//send ack over to client with packet number
 			char* ackMsg = &packetNum;
 
+			/* if(i == 2) { */
 			if (!write(sockfd, ackMsg, sizeof(packetNum))) {
 				cout << "2. ERROR writing to socket: " << sockfd << endl;
 				break;
 			}
 			else {
 				cout << "Ack " << packetNum << " sent" << endl;
+				sequenceNumber_s++;
+				sequenceNumber_s %= seqNumRange;
+				
+				totalBytes_s += packetBytes;
 			}
+			/* 	i = 0;
+			}
+			else {
+				i++; 
+			}*/
+		}
+		else {
+			cout << "Checksum for Packet " << packetNum << " has failed" << endl;
 		}
 
 		//printout of payload after taking out any DLE's
@@ -294,14 +306,19 @@ void server(int portNum)
 	}
 
 	myfile.close();
+	
+	cout << "Session successfully terminated" << endl;
 
 	double Uduration = (timer.GetTimeInMicroSeconds() - startTimeUSecs);
 
 	cout.precision(5);
-	cout << endl << "Packet Size Received: " << totalBytes_s << " bytes" << endl;
+	cout << endl << "Last packet # received: " << lastPacketNum << endl;
+	cout << "Total bytes received: " << totalBytes_s << " bytes" << endl;
 	cout << "Number of packets received: " << numPacketsReceived << endl;
 	cout << "Total elapsed time: " << Uduration / 1000000 << "s" << endl;
-	cout << "md5sum: " << "0" << endl;
+	cout << "md5sum: " << endl;
+	system("md5sum Output.txt");
+	cout << endl;
 
 	close(ss);
 	close(sockfd);

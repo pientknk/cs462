@@ -2,18 +2,21 @@
 
 int socket_;
 int bytesWritten = 0;
+int bytesResent = 0;
 int numPacketsSent = 0;
 char ack;
 char* ackBuffer = &ack;
 int sequenceNumber_c;
 int bytes_c;
 long totalBytes_c;
+int bytesSent;
 int currentIndex = 0;
 char* packet_c;
 char* payload;
 int currentPacketSize;
 Timer timer;
 suseconds_t startWriteUSec;
+time_t sendTime;
 
 int callServer(string host, int portNum) {
 	const char* constHost = host.c_str();
@@ -57,7 +60,6 @@ int callServer(string host, int portNum) {
 
 int writePacket() {
 		char* packetPayloadPointer = payload + currentIndex;
-		currentIndex += currentPacketSize;
 		char* packetPayload = new char[currentPacketSize];
 		strncpy(packetPayload, packetPayloadPointer, currentPacketSize);
 
@@ -74,20 +76,9 @@ int writePacket() {
 		}
 		cout << endl;*/
 
-		//boost checksum and displaying it along with payload contents
-		/*crcChecker.process_bytes(packetPayload, sizeof(packetPayload));
-		cout << "Checksum: " << crcChecker.checksum() << endl;
-		crcChecker.process_bytes(packetPayload, sizeof(packetPayload));
-		cout << "Checksum2: " << crcChecker.checksum() << endl;
-
-		cout << "Values in Payload: " << endl;
-		for (int i = 0; i < currentPacketSize; i++) {
-			cout << packetPayload[i];
-		}
-		cout << endl;*/
-
 		uint16_t value = gen_crc16(packetPayload, currentPacketSize);
-		cout << "checksum: " << value << endl;
+		//cout << "checksum: " << value << endl;
+		
 		//uint16_t value2 = gen_crc16(packetPayload, sizeof(packetPayload));
 		//cout << "Value2: " << value2 << endl;
 
@@ -168,8 +159,10 @@ int writePacket() {
 void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 {
 	socket_ = callServer("thing3.cs.uwec.edu", portNum);
-
-	//boost::crc_basic<16>  crcChecker(0x1021, 0xFFFF, 0, false, false);
+	
+	struct timeval sockTimeout;
+	sockTimeout.tv_sec = 2;
+	setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &sockTimeout, sizeof(struct timeval));
 
 	//get file data and setup packet
 	totalBytes_c = getFileSize(fileName);
@@ -207,14 +200,15 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 
 		/**** WRITING ****/
 		bytes_c = writePacket();
+		sendTime = timer.GetTimeInSeconds();
+		
 		if (bytes_c <= 0)
 		{
 			cout << "1. ERROR writing to socket: " << socket_ << endl;
 			break;
 		}
 		else {
-			totalBytes_c -= (bytes_c - PACKET_FRAME_SIZE);
-			bytesWritten += bytes_c;
+			bytesSent = bytes_c;
 			numPacketsSent++;
 
 			cout << "Packet " << sequenceNumber_c << " sent" << endl;
@@ -223,33 +217,64 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName)
 		/**** READING ****/
 		bytes_c = 0;
 		bytes_c = read(socket_, ackBuffer, sizeof(ack));
-		if (bytes_c <= 0) {
-			cout << "2. ERROR reading from socket: " << socket_ << endl;
-			break;
+
+		if (bytes_c <= 0) {	
+			//cout << "2. ERROR reading from socket: " << socket_ << endl;
+			if(timer.GetTimeInSeconds() - sendTime >= 2) {
+				cout << "Packet " << sequenceNumber_c << "**** Timed Out *****" << endl;
+				cout << "Packet " << sequenceNumber_c << "Re-transmitted" << endl;
+				bytesResent += bytesSent;
+			}
+			else {
+				break;
+			}
 		}
 		else {
+			currentIndex += currentPacketSize;
+			
 			//Get updated time
 			suseconds_t endWriteUSec = timer.GetTimeInMicroSeconds();
 			double rtt = endWriteUSec - startWriteUSec;
 
+			if(bytes_c > 0) {
+				totalBytes_c -= (bytesSent - PACKET_FRAME_SIZE);
+			}
+			
 			cout << "Ack " << sequenceNumber_c << " received. (RTT for pkt " << sequenceNumber_c << " = " << rtt << "us)" << endl;
+			
+			bytesWritten += bytesSent;
+			sequenceNumber_c++;
+			sequenceNumber_c %= seqNumberRange;
 		}
-
-		sequenceNumber_c++;
-		sequenceNumber_c %= seqNumberRange;
+	}
+	
+	if(totalBytes_c == 0) {
+		cout << "Session successfully terminated" << endl;
+	}
+	else if (totalBytes_c < 0) {
+		cout << "Session terminated with negative number of remaining bytes" << endl;
+	}
+	else {
+		cout << "Session terminated early" << endl;
 	}
 
 	// get updated time
 	double Uduration = (timer.GetTimeInMicroSeconds() - startTimeUSecs);
 	double throughput = ((double)bytesWritten / (double)Uduration);
+	
+	const char* systemMD5 = ("md5sum " + fileName).c_str();
 
 	//print stats
 	cout.precision(5);
-	cout << endl << "Packet Size: " << bytesWritten << " bytes" << endl;
+	cout << endl << "Total bytes sent: " << bytesWritten + bytesResent << " bytes" << endl;
+	cout << "Number of original packets sent: " << bytesWritten << " bytes" << endl;
+	cout << "Number of retransmitted packets sent: " << bytesResent << " bytes" << endl; 
 	cout << "Number of packets sent: " << numPacketsSent << endl;
 	cout << "Total elapsed time: " << Uduration / 1000000 << "s" << endl;
 	cout << "Throughput (Mbps): " << throughput << endl;
-	cout << "md5sum: " << "0" << endl;
+	cout << "md5sum: " << endl;
+	system(systemMD5);
+	cout << endl;
 
 	close(socket_);
 

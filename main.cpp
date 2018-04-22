@@ -56,6 +56,7 @@ int main(int argc, char **argv) {
 					cout << "Please specify the range of sequence numbers: " << endl;
 					cin >> seqNumRange;
 					seqNumberRange = stoi(seqNumRange, st, 10);
+					cout << endl;
 					if (seqNumberRange >= 1 && seqNumberRange <= MAX_SEQ_NUM_RANGE) {
 						choseSeqNumRange = true;
 					}

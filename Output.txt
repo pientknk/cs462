@@ -3,24 +3,6 @@ TO RUN:
 	2. Open putty and login to thing3 and thing2
 	3. Navigate to directory of unzipped files on both thing2 and thing3
 	4. On thing3, run make command
-	5. On thing3, start the server with the followTO RUN:
-	1. Place unzipped files into desired directory
-	2. Open putty and login to thing3 and thing2
-	3. Navigate to directory of unzipped files on both thing2 and thing3
-	4. On thing3, run make command
-	5. On thing3, start the server with the following command
-		./primes maxNumber portNumber flag  
-		./primes 1000000 9037 -s
-		
-	6. On thing2, start the client with the following command
-		./primes maxNumber portNumber flag
-		./primes 1000000 9037 -c
-
-	7. Repeat with various maxNumbers and chanTO RUN:
-	1. Place unzipped files into desired directory
-	2. Open putty and login to thing3 and thing2
-	3. Navigate to directory of unzipped files on both thing2 and thing3
-	4. On thing3, run make command
 	5. On thing3, start the server with the following command
 		./primes maxNumber portNumber flag  
 		./primes 1000000 9037 -s
