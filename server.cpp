@@ -2,9 +2,10 @@
 
 int sockfd;
 string packet_s;
+string fileContents;
 char* packet2;
 char packetNum;
-char lastPacketNum = '_';
+char lastPacketNum = USCR;
 int packetBytes;
 char* packetBuffer;
 int packetBufferIndex;
@@ -12,9 +13,13 @@ int payloadSize;
 int sequenceNumber_s;
 int bytes_s;
 int totalBytes_s;
+int bytesReceived = 0;
+int bytesDuplicate = 0;
 bool foundEndOfPacket;
 bool isDone;
 
+//Error introduction variables
+bool failToSendAcks = false;
 int i;
 
 //initialize socket for the server
@@ -120,6 +125,7 @@ void generatePacket() {
 	}
 
 	//create string from buffer somehow
+	packet_s = "";
 	packet2 = new char[adjustedPayloadSize];
 	int packet2Index = 0;
 	for (int i = 3; i < payloadSize + 3; i++) {
@@ -208,9 +214,7 @@ void server(int portNum)
 			}
 		}
 	}
-		if (isDone) {
-			//append to the file
-			myfile << packet_s;
+		if (isDone) {		
 			break;
 		}
 
@@ -251,28 +255,49 @@ void server(int portNum)
 			
 			if(packetNum != lastPacketNum) {
 				lastPacketNum = packetNum;
+				bytesReceived += packetBytes;
+				//append to the file
+				myfile << packet_s;
+			}
+			else {
+				bytesDuplicate += packetBytes;
 			}
 
 			//send ack over to client with packet number
 			char* ackMsg = &packetNum;
 
-			/* if(i == 2) { */
-			if (!write(sockfd, ackMsg, sizeof(packetNum))) {
-				cout << "2. ERROR writing to socket: " << sockfd << endl;
-				break;
+			if(failToSendAcks) {
+				if(i == 2) {
+					if (!write(sockfd, ackMsg, sizeof(packetNum))) {
+						cout << "2. ERROR writing to socket: " << sockfd << endl;
+						break;
+					}
+					else {
+						cout << "Ack " << packetNum << " sent" << endl;
+						sequenceNumber_s++;
+						sequenceNumber_s %= seqNumRange;
+					
+						totalBytes_s += packetBytes;
+					}
+					i = 0;
+				}
+				else {
+					i++; 
+				}
 			}
 			else {
-				cout << "Ack " << packetNum << " sent" << endl;
-				sequenceNumber_s++;
-				sequenceNumber_s %= seqNumRange;
-				
-				totalBytes_s += packetBytes;
+				if (!write(sockfd, ackMsg, sizeof(packetNum))) {
+						cout << "2. ERROR writing to socket: " << sockfd << endl;
+						break;
+					}
+					else {
+						cout << "Ack " << packetNum << " sent" << endl;
+						sequenceNumber_s++;
+						sequenceNumber_s %= seqNumRange;
+					
+						totalBytes_s += packetBytes;
+					}
 			}
-			/* 	i = 0;
-			}
-			else {
-				i++; 
-			}*/
 		}
 		else {
 			cout << "Checksum for Packet " << packetNum << " has failed" << endl;
@@ -298,10 +323,6 @@ void server(int portNum)
 		}
 		cout << endl;*/
 
-		//boost checksum
-		/*crcChecker.process_bytes(packet2, sizeof(packet2));
-		cout << crcChecker.checksum() << endl;*/
-
 		//cout << "To: thing2.cs.uwec.edu" << endl << endl;
 	}
 
@@ -313,7 +334,9 @@ void server(int portNum)
 
 	cout.precision(5);
 	cout << endl << "Last packet # received: " << lastPacketNum << endl;
-	cout << "Total bytes received: " << totalBytes_s << " bytes" << endl;
+	cout << "Total bytes received: " << bytesReceived + bytesDuplicate << " bytes" << endl;
+	cout << "Number of original packets received: " << bytesReceived << " bytes" << endl;
+	cout << "Number of retransmitted packets received: " << bytesDuplicate << " bytes" << endl;
 	cout << "Number of packets received: " << numPacketsReceived << endl;
 	cout << "Total elapsed time: " << Uduration / 1000000 << "s" << endl;
 	cout << "md5sum: " << endl;
