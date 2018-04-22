@@ -1,3 +1,8 @@
+#include "userinput.h"
+
+size_t* st;
+locale loc;
+
 string GetFileName() {
 	bool validFile = false;
 	string fileName;
@@ -105,7 +110,7 @@ int GetTimeOutFromUser() {
 	while (!choseInterval) {
 		cout << "How long should the timeout be in microseconds?" << endl;
 		cin >> interval;
-		if (isDigit(interval)) {
+		if (isdigit(interval, loc)) {
 			theInterval = stoi(interval, st, 10);
 			if (theInterval > 0 && theInterval <= 5000000) {
 				choseInterval = true;
@@ -129,15 +134,15 @@ int GetSlidingWindowSize() {
 	size_t* st;
 	while (!choseSlidingWindowSize) {
 		cout << "What should the Sliding Window Size be?" << endl;
-		cin >> interval;
-		if (isDigit(interval)) {
-			size = stoi(interval, st, 10);
+		cin >> inputSize;
+		if (isdigit(inputSize, loc)) {
+			size = stoi(inputSize, st, 10);
 			if (size > 0 && size <= 16) {
 				if (size != 1 && size % 2 != 0) {
 					cout << "\nERROR: You must enter a number that is between 1 and 16 and a multiple of 2" << endl;
 				}
 				else {
-					choseInterval = true;
+					choseSlidingWindowSize = true;
 				}
 			}
 			else {
@@ -160,7 +165,7 @@ int GetSituationalErrorType() {
 	while (!choseSitErrorType) {
 		cout << "Please select a Situational Error Type. 0 for None, 1 for Randomly Generated, or 2 for User-Specified" << endl;
 		cin >> sitErrorType;
-		if (sitErrorType == SitErrors[SitError::NO] || sitErrorType == SitErrors[SitError::RG] || sitErrorType == SitErrors[SitError::US]) {
+		if (sitErrorType == SitErrors[SitError::NO] || sitErrorType == SitErrors[SitError::RG] || sitErrorType == SitErrors[SitError::USP]) {
 			errorType = stoi(sitErrorType, st, 10);
 			choseSitErrorType = true;
 		}
@@ -176,7 +181,6 @@ int GetErrorControlType() {
 	bool choseErrorControlType = false;
 	string errorControlType;
 	int errorType = ErrorControl::AL;
-	size_t* st;
 	while (!choseErrorControlType) {
 		cout << "Please select an Error Control Type. 0 for Packet Loss, 1 for Packet Damage, or 2 for Ack Loss or 3 for multiple" << endl;
 		cin >> errorControlType;
@@ -191,8 +195,6 @@ int GetErrorControlType() {
 
 	return errorType;
 }
-
-
 
 //TO RUN SERVER: ./packet 9036 -s
 //TO RUN CLIENT: ./packet 9036 -c

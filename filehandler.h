@@ -1,5 +1,5 @@
-#ifndef FILES_H
-#define FILES_H
+#ifndef FILEHANDLER_H
+#define FILEHANDLER_H
 
 #include <string>
 #include <string.h>

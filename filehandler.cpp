@@ -1,9 +1,7 @@
-#ifndef FILES
-#define FILES
+#ifndef FILEHANDLER
+#define FILEHANDLER
 
-#include "files.h"
-
-using namespace std;
+#include "filehandler.h"
 
 //return a string of all characters in the designated file
 char* parseFile(string fileName, long fileSize) {
