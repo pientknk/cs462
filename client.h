@@ -15,6 +15,7 @@
 #include "filehandler.h"
 #include "crc16Checksum.h"
 #include "constants.h"
+#include "userinput.h"
 
 
 using namespace std;
@@ -23,6 +24,6 @@ int callServer(string host, int portNum);
 
 int writePacket();
 
-void client(int portNum, int packetSize, int seqNumberRange, string fileName);
+void client(int portNum, int packetSize, int seqNumberRange, string fileName, int protocol, int slidingWindowSize, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop);
 
 #endif

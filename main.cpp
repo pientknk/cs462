@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
 				cout << endl;
 
 
-				client(portNum, packetSizeInBytes, seqNumberRange, fileName);
+				client(portNum, packetSizeInBytes, seqNumberRange, fileName, protocol, slidingWindowSize, acksToLose, packetsToDamage, packetsToDrop);
 			}
 			else {
 				cerr << "ERROR with third parameter: " << argv[2] << ", the proper flags are -c or -s" << endl;

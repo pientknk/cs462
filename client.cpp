@@ -176,7 +176,7 @@ int writePacket() {
 		return write(socket_, packet_c, adjustedPayloadSize + PACKET_FRAME_SIZE);
 }
 
-void client(int portNum, int packetSize, int seqNumberRange, string fileName)
+void client(int portNum, int packetSize, int seqNumberRange, string fileName, int protocol, int slidingWindowSize, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop)
 {
 	socket_ = callServer("thing3.cs.uwec.edu", portNum);
 	
