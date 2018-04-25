@@ -24,6 +24,8 @@ int callServer(string host, int portNum);
 
 int writePacket();
 
-void client(int portNum, int packetSize, int seqNumberRange, string fileName, int protocol, int slidingWindowSize, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop);
+void client(int portNum, int packetSize, int seqNumberRange, string fileName, int protocol, int slidingWindowSize, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout);
+
+void clientStopAndWait(int portNum, int packetSize, int seqNumRange, string fileName, int intervalTimeout);
 
 #endif

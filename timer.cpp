@@ -16,6 +16,11 @@ typedef struct Timer {
 		gettimeofday(&time, NULL);
 		return time.tv_usec;
 	}
+
+	suseconds_t GetCurrentTimeInMicroSeconds() {
+		gettimeofday(&time, NULL);
+		return time.tv_sec * 1000000 + time.tv_usec;
+	}
 } Timer;
 
 #endif

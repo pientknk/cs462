@@ -20,79 +20,93 @@ int main(int argc, char **argv) {
 			else if (!strcmp(argv[2], "-c")) {
 				int packetSizeInBytes = DEFAULT_PACKET_SIZE;
 				int seqNumberRange = DEFAULT_SEQ_NUM_RANGE;
-
-				string fileName = GetFileName();
-				packetSizeInBytes = GetPacketSize();
-
-				unsigned long maxPackets = ceil((double)GetFileSize(fileName) / (double)packetSizeInBytes);
-
-				int protocol = GetProtocol();
-				int slidingWindowSize = 0;
-				if (protocol == Protocol::GBN || protocol == Protocol::SR) {
-					slidingWindowSize = GetSlidingWindowSize(maxPackets);
-				}
-
-				int intervalMethod = GetTimeOutIntervalMethod();
-				int intervalTimeInMicroseconds = -1;
-				if (intervalMethod == TOInterval::US) {
-					intervalTimeInMicroseconds = GetTimeOutFromUser();
-				}
-				else { //ping calculated
-					//use ping to pick a good timeout? or pass in -1 so that the client know that it needs to figure it out
-				}
-
-				seqNumberRange = GetSequenceNumberRange(maxPackets);
-				int situationalErrorType = GetSituationalErrorType();
 				vector<int> acksToLose;
 				vector<int> packetsToDamage;
 				vector<int> packetsToDrop;
 
-				if (situationalErrorType == SitError::USP) {
-					int errorControlType = GetErrorControlType();
-					//ack lost
-					if (errorControlType == ErrorControl::AL) {
-						int numAcksToLose = GetNumberOfAcksToLose(maxPackets);
-						acksToLose = GetAllAcksToLose(numAcksToLose);
-					}
-					//packet damage
-					else if (errorControlType == ErrorControl::PD) {
-						int numPacketsToDamage = GetNumberOfPacketsToDropOrDamage(maxPackets, false);
-						packetsToDamage = GetAllPacketsToDropOrDamage(numPacketsToDamage, false);
-					}
-					//packet loss/drop
-					else if (errorControlType == ErrorControl::PL) {
-						int numPacketsToDamage = GetNumberOfPacketsToDropOrDamage(maxPackets, true);
-						packetsToDrop = GetAllPacketsToDropOrDamage(numPacketsToDamage, true);
-					}
-					//multiple
-					else {
-						GetMultipleErrorsFromUser(maxPackets, packetsToDrop, packetsToDamage, acksToLose);
-					}
-				}
+				string preset = GetPresets();
 
-				cout << "Acks to lose: ";
-				for(int value : acksToLose)
-				{
+				if (preset == "SW") {
+					clientStopAndWait(portNum, 256, 2, "test.txt", 1200);
+				}
+				else if (preset == "GBN") {
+					cout << "Not configured";
+					//client(portNum, packetSizeInBytes, seqNumberRange, fileName, protocol, slidingWindowSize, acksToLose, packetsToDamage, packetsToDrop, intervalTimeInMicroseconds);
+				}
+				else if (preset == "SR") {
+					cout << "Not configured";
+					//client(portNum, packetSizeInBytes, seqNumberRange, fileName, protocol, slidingWindowSize, acksToLose, packetsToDamage, packetsToDrop, intervalTimeInMicroseconds);
+				}
+				else {
+					string fileName = GetFileName();
+					packetSizeInBytes = GetPacketSize();
+
+					unsigned long maxPackets = ceil((double)GetFileSize(fileName) / (double)packetSizeInBytes);
+
+					int protocol = GetProtocol();
+					int slidingWindowSize = 0;
+					if (protocol == Protocol::GBN || protocol == Protocol::SR) {
+						slidingWindowSize = GetSlidingWindowSize(maxPackets);
+					}
+
+					int intervalMethod = GetTimeOutIntervalMethod();
+					int intervalTimeInMicroseconds = -1;
+					if (intervalMethod == TOInterval::US) {
+						intervalTimeInMicroseconds = GetTimeOutFromUser();
+					}
+					else { //ping calculated
+						   //use ping to pick a good timeout? or pass in -1 so that the client know that it needs to figure it out
+					}
+
+					seqNumberRange = GetSequenceNumberRange(maxPackets);
+					int situationalErrorType = GetSituationalErrorType();
+
+					if (situationalErrorType == SitError::USP) {
+						int errorControlType = GetErrorControlType();
+						//ack lost
+						if (errorControlType == ErrorControl::AL) {
+							int numAcksToLose = GetNumberOfAcksToLose(maxPackets);
+							acksToLose = GetAllAcksToLose(numAcksToLose);
+						}
+						//packet damage
+						else if (errorControlType == ErrorControl::PD) {
+							int numPacketsToDamage = GetNumberOfPacketsToDropOrDamage(maxPackets, false);
+							packetsToDamage = GetAllPacketsToDropOrDamage(numPacketsToDamage, false);
+						}
+						//packet loss/drop
+						else if (errorControlType == ErrorControl::PL) {
+							int numPacketsToDamage = GetNumberOfPacketsToDropOrDamage(maxPackets, true);
+							packetsToDrop = GetAllPacketsToDropOrDamage(numPacketsToDamage, true);
+						}
+						//multiple
+						else {
+							GetMultipleErrorsFromUser(maxPackets, packetsToDrop, packetsToDamage, acksToLose);
+						}
+					}
+
+					/*cout << "Acks to lose: ";
+					for(int value : acksToLose)
+					{
 					cout << value << ", ";
-				}
-				cout << endl;
+					}
+					cout << endl;
 
-				cout << "Packets to damage: ";
-				for(int value : packetsToDamage)
-				{
+					cout << "Packets to damage: ";
+					for(int value : packetsToDamage)
+					{
 					cout << value << ", ";
-				}
-				cout << endl;
+					}
+					cout << endl;
 
-				cout << "Packets to drop: ";
-				for(int value : packetsToDrop)
-				{
+					cout << "Packets to drop: ";
+					for(int value : packetsToDrop)
+					{
 					cout << value << ", ";
+					}
+					cout << endl;*/
+
+					client(portNum, packetSizeInBytes, seqNumberRange, fileName, protocol, slidingWindowSize, acksToLose, packetsToDamage, packetsToDrop, intervalTimeInMicroseconds);
 				}
-				cout << endl;
-
-
-				client(portNum, packetSizeInBytes, seqNumberRange, fileName, protocol, slidingWindowSize, acksToLose, packetsToDamage, packetsToDrop);
 			}
 			else {
 				cerr << "ERROR with third parameter: " << argv[2] << ", the proper flags are -c or -s" << endl;

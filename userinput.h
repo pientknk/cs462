@@ -23,6 +23,8 @@ const string SitErrors[] = { "0", "1", "2" };
 enum ErrorControl { PL, PD, AL, ML }; //Packet Loss, Packet Damage, Ack Lost, Multiple
 const string ErrorControls[] = { "0", "1", "2", "3" };
 
+string GetPresets();
+
 string GetFileName();
 
 int GetPacketSize();

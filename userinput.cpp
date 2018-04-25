@@ -8,6 +8,27 @@ string input;
 bool hasValidInput;
 const string NANERROR = "\nERROR: You must enter a number and it has to be greater than 0";
 
+string GetPresets() {
+	hasValidInput = false;
+	input = "";
+	while (!hasValidInput) {
+		cout << "Would you like to use the presets? Type the name of the preset to use: SW, GBN, or SR. Or type 'n' to continue" << endl;
+		cin >> input;
+		ifstream myfile(input);
+		if (input == "SW" || input == "GBN" || input == "SR") {
+			hasValidInput = true;
+		}
+		else if (input == "n") {
+			hasValidInput = true;
+		}
+		else {
+			cout << "\nERROR: invalid input provided: " << input << endl;
+		}
+	}
+
+	return input;
+}
+
 string GetFileName() {
 	hasValidInput = false;
 	input = "";
