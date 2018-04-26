@@ -88,6 +88,12 @@ int writePacket() {
 		contents += character;
 	}
 
+	ofstream afile;
+	afile.open("ClientOutput.txt");
+	afile << contents;
+	afile.close();
+	cout << "Wrote file ClientOutput.txt" << endl;
+
 	uint16_t value = gen_crc16(packetPayload, currentPacketSize);
 	//cout << "checksum: " << value << endl;
 
@@ -281,14 +287,14 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 
 		if (bytes_c <= 0) {
 			cout << "timer - sendtime: " << timer.GetCurrentTimeInMicroSeconds() - sendTime << " >= " << intervalTimeout << endl;
-			if (timer.GetCurrentTimeInMicroSeconds() - sendTime >= intervalTimeout * .85) {
+			//if (timer.GetCurrentTimeInMicroSeconds() - sendTime >= intervalTimeout * .85) {
 				cout << "Packet " << sequenceNumber_c << " **** Timed Out *****" << endl;
 				cout << "Packet " << sequenceNumber_c << " Re-transmitted" << endl;
 				bytesResent += extraBytes;
-			}
+			/*}
 			else {
 				break;
-			}
+			}*/
 			
 		}
 		else {

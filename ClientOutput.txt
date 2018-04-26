@@ -1,0 +1,603 @@
+le_word[6][(word >> 8) & 0xff] ^
+                  table_word[5][(word >> 16) & 0xff] ^
+                  table_word[4][(word >> 24) & 0xff] ^
+                  table_word[3][(word >> 32) & 0xff] ^
+                  table_word[2][(word >> 40) & 0xff] ^
+                  table_word[1][(word >> 48) & 0xff] ^
+                  table_word[0][word >> 56];
+            data += 8;
+            len -= 8;
+        } while (len >= 8);
+    }
+    while (len--)
+        crc = (crc >> 8) ^
+              table_byte[(crc ^ *data++) & 0xff];
+    return crc;
+}
+shareimprove this answer
+edited Jan 20 at 16:57
+answered Jan 20 at 16:43
+
+Mark Adler
+49.1k75599
+add a comment
+Your Answer
+
+ 
+Sign up or log in
+ Sign up using Google
+ Sign up using Facebook
+ Sign up using Email and Password
+ 
+Post as a guest
+Name
+
+Email
+
+required, but never shown
+By posting your answer, you agree to the privacy policy and terms of service.
+
+Not the answer you're looking for? Browse other questions tagged c crc crc16 or ask your own question.
+asked
+
+5 years, 11 months ago
+
+viewed
+
+120,383 times
+
+active
+
+3 months ago
+
+
+Want a c++ job?
+Software Engineer (Cloud, Java, .NET, C++, Front End)
+CrossoverNo office location
+$30K - $30KREMOTE
+c++java
+Chief Software Architect (Cloud, Java, C++, Angular, PHP, Test Automation)
+CrossoverNo office location
+$100K - $100KREMOTE
+c++java
+Linked
+9
+CRC16 checksum: HCS08 vs. Kermit vs. XMODEM
+2
+NSData to CRC-16?
+7
+Library for CRC16 checksum in Elixir
+1
+Calculating CRC16 checksum
+0
+What is Synchronous head serial communication
+Related
+14
+How could I guess a checksum algorithm?
+6
+Calculate/validate bz2 (bzip2) CRC32 in Python
+0
+Delphi program generating incorrect CRC16, want to replicate behavior in C#
+3
+CRC 16 program to calculate check sum
+0
+CRC-16 (IBM) Reverse Lookup in C++
+0
+How to detect errors in CRC-protected data?
+4
+How to configure calculation of CRC table
+0
+CRC-32 calculation
+1
+P1 Meter CRC16 checksum
+2
+How to calculate the CRC16 for wireless M-Bus messages
+Hot Network Questions
+In non-violent communication, what to do when "I feel..." statements fail?
+Would appending junk data to user passwords before hashing affect security?
+Did US flags on the moon turn white?
+How to deal with my boyfriend’s mother without affecting my relationship with him?
+What is the difference between a separatist and a rebel?
+Why isn't everybody rich?
+Which Overloaded Method is Called in Java
+Is it okay to name submit button as "Select"
+Is there 64k range VLAN support?
+Are residuals "predicted minus actual" or "actual minus predicted"
+What Linux process is responsible for responding to pings?
+How long does it take for a servo to change rotation?
+Are scorpions frequent in US suburb gardens or is this a plot exaggeration?
+How do I derive this equation for total energy of an oscillating spring?
+Starbucks spoofing me?
+Is it possible with Gedit or the command line to modify every fourth line of a text file?
+Should I Take the Bus or Refill My Bottle First?
+Does the upcoming film with Venom take place in the Marvel Cinematic Universe?
+How quickly could the fashion industry react to new humanoid fantasy races?
+How can I compute a Kronecker sum in Mathematica?
+Reset 12v power supply every hour
+How can a boss enemy prevent being the most obvious target?
+How to have a terminal mirrored onto a second screen in a two-monitor setup?
+My suitcase kind of broke so I taped it. Is it still possible to bring it on an airplane with the tape?
+
+In non-violent communication, what to do when “I feel…” statements fail?
+up vote
+52
+down vote
+favorite
+9
+Non-Violent Communication seems to be a common piece of advice when it comes to conflict resolution. So far as I understand, NVC promotes the use of "I-statements": saying things like,
+
+I feel X when you Y
+
+rather than,
+
+You made me X!
+
+This sounds great in theory: you only talk about things you can know for sure - how you feel - and the other person can't argue because they're your feelings.
+
+What if that doesn't work?
+
+I mean situations like:
+
+the other person "sees through" the I-statement and interprets it as the second anyways
+
+A: I felt scared to tell you [serious, personal thing]
+B: You think I'm a judgmental person?!
+
+the other person says you shouldn't feel that way
+
+A: I feel uncomfortable being around my ex
+B: That's ridiculous, you're dating someone else so you shouldn't care
+
+the other person dismisses your feelings
+
+A: I felt really hurt when you did that
+B: Why should everyone cater to your feelings?
+
+(Examples are paraphrased from actual conversations where we were attempting to reach an understanding or resolve a conflict - for instance, the second conversation occurred when I tried to decline an invitation to a party. They are meant to illustrate situations where I was attempting to follow principles of NVC, but the other person responded with invalidation or hostility, rather than empathy and collaboration, which is what I was hoping for.)
+
+Written out, it seems easy to rebut the statements logically, but keep in mind these are conversations about topics with strong emotions involved. Seeing as though humans are not logical machines, it makes sense that not everyone will respond as you hope to "I feel" statements. I know simply phrasing things a certain way is not a magic bullet, but as I am trying to improve my conflict resolution skills it's helpful to have rules to keep myself in line. My hope is that by forcing myself to stick to these guidelines, I will eventually internalize the philosophy.
+
+So, I would like to know how non-violent communication can be used to defuse such responses. Most posts I see simply advise on the initial phrasing but don't discuss following up to a negative response.
+
+What is the next step in this communication strategy when "I feel" statements fail, if any?
+
+(Please note, I am interested in the "theory" of non-violent communication more than solutions to these particular examples, although I can add more context if necessary.)
+
+conflicts non-violent-communication
+shareimprove this question
+edited 7 hours ago
+asked 2 days ago
+
+Em C
+6,41713155
+How do you hope people would respond to your „I feel“ statements, and if they do, what will that make possible for you? – michi yesterday
+2
+@michi I was using them to (try to) discuss a conflict and reach understanding/compromise. For example, "I feel uncomfortable being around my ex" was in context of being told I ought to attend a party that he'd be at, so I was hoping for "I see, I will understand if you don't want to attend" or at least "Okay well I really want you to attend, so what would make you more comfortable?". – Em C yesterday
+@EmC If you want them to ask you how they could make you more comfortable, why don't you simply just tell them how to remedy the situation? "I feel uncomfortable around my ex, perhaps we could ... so I will be less uncomfortable". People can't read your mind, they may see you saying "I feel uncomfortable around my ex" as saying "I will not go, no matter what", which may make them defensive if they really want you to go. – GrumpyCrouton 8 hours ago 
+1
+@GrumpyCrouton The argument started when I tried to decline the invitation, sorry if that wasn't clear - I didn't just say that one line and wait for a response :P What I meant in my earlier comment was that I hoped the other person would respond with NVC (empathizing and collaborating, not invalidating). I was intentionally short with the examples because I didn't mean for them to be the focus, I am most interested in the general strategy of what to do when I am trying to follow NVC principles and the other person is not. – Em C 7 hours ago
+The "theory of non-violent communication" is only indirectly related to actual interpersonal skills. If someone develops a hedonist theory and uses it to solve all interpersonal problems (badly), could questions about that theory be considered on topic for this site? – Wildcard 6 mins ago
+suggest improvements
+10 Answers
+active oldest votes
+up vote
+22
+down vote
+"I statements" are very useful for addressing conflict in a healthy manner, but in an of themselves often will not resolve the conflict.
+
+The purpose of an I statement is to communicate about a problem without implicating any blame or accusations on the other person. One reason this technique is so highly regarded is because it avoids the aggressive/defensive mentality (for both parties) of competitive conflict escalation while still enabling you to communicate about the conflict which is very important for reaching a resolution. Here we see an example of a couple whose conflict was ongoing because it felt non-negotiable and they were only able to find a solution through communicating about the problem (this time with the help of a therapist) and an I statement is a way to do this yourself.
+
+What if that doesn't work?
+
+The frame of this question is slightly off the mark. Even when someone responds negatively, the I statement likely has worked, it enabled you to communicate about the problem in a conflict without implicating blame (the first step towards healthy conflict resolution). A person responding negatively to when you bring up a difficult and emotional conflict is normal and it does not mean that your entire approach has "failed" or that trying to share your feelings, remain calm and use objective and non accusatory descriptions is any less valuable. Instead, with your goal of understanding conflict resolution in mind, I think that the better frame would be:
+
+How do you continue to try and resolve the conflict?
+
+The answer to this is far more varied because conflicts are varied. They are complicated and have no one size fits all solution... in general however it will always be helpful to continue to use I statements to communicate your feelings, try and understand and empathise with their feelings, remain calm and do your best to avoid any competitive conflict escalation. You asked about the theory of non-violent communication, (which is basically just communication) and there is a lot of research about this topic in the context of trying to resolve conflicts, to start with I would encourage learning and avoiding negative conflict resolution cycles.
+
+Edit in response to AllTheKingsHorses: you aren't quite reading the answer right. I am saying that the situations OP described were NOT failed attempts at all, OP successfully communicated without violence (that's not saying you can't ever improve). Thinking that NVC failed, or doesn't apply simply because the other person is not all sunshine and rainbows is where the difference lies. As you implied yourself: people, relationships and conflicts are all so varied. What is and isn't a healthy way of dealing with conflicts doesn't suddenly just not apply whenever someone is rude or irrational. This is a conflict we are talking about after all. You are right in the end, OP can't just magic the unwilling people to co-operate. If we wants to try and apply NVC and use healthy ways of dealing with conflicts then that is absolutely wonderful! Don't be discouraged just because it doesn't magically work straight away.
+
+Lastly I just wanted to comment on your first example of an I statement as while it is fine, there is a small comment that I want to make. When describing the situation in an I statement it is important to remain as neutral and objective as possible. Keeping the focus on yourself and avoiding any accusatory implications. An example of a bad application of this would be to say "I feel upset because you are being an asshole." as although prefaced around your feelings it still clearly implies blame. Your example of "I felt scared to tell you" is not nearly as bad, but by saying that it was about them is not as objective as an ideal I statement would be, and likely the reason it was left open to their interpretation (in which they presumed you meant it in a negative way). The solution to this is to keep it purely objective or double down on the self-focus, eg "I felt scared to say ____" or "I felt scared to tell you ____ because it is something that I am ashamed about"
+
+shareimprove this answer
+edited 13 hours ago
+answered yesterday
+
+Jesse
+4,09121640
+2
+The way I read it, this answer boils down to "if you failed with NVC, try harder and be very accommodating to the other person" - but it doesn't take into account situations where the other person has no interest or incentive to be honest, accommodating, and respectful to OP themselves. OP can't magick them to cooperate if they don't want to. I think this answer could be improved by addressing such situations. – AllTheKingsHorses yesterday
+suggest improvements
+up vote
+10
+down vote
+Non violent communication is nice, but seems to work best if both parties are somewhat competent in it. That is, they are willing to listen to what the other has to say and are able to regulate their emotional response to some things that the other has said. In the OP's question it is not clear if the inadequate - or so it is felt by the OP - response to an NVC opening is due to:
+
+incompetence; the other does not know how and has not learnt to communicate back to a remark with obvious emotional weight (sentences beginning with I feel X .. carry emotional weight);
+focus of attention being elsewhere; it can take several seconds to minutes before a person can shift their focus, in the meantime a response is expected and the responder goes on auto pilot and retorts with an emotional response;
+wilful conflict mode; there could be a variety of reasons, such as dominance assertion, prior history, indifference, and so on.
+The next step in non violent communication depends on your evaluation of why the other replied the way they did. It is important that this evaluation is not clouded by your emotional response to what they replied although this is somewhat unavoidable. Tone of voice and non-verbal cues are important here and the same goes for your continuation.
+
+There are a number of alternatives, especially for the first two cases:
+
+Repeat and expand, possibly in other words. This works for the merely incompetent and those whose attention was elsewhere when you have their attention. If the latter you may need to solicit their attention first ('I really need to talk to you/someone, because it is important to me right now'). Example: "I felt scared to tell you because I feel ashamed/guilty about it"
+
+Assert your feelings about the subject matter keeping the goal in mind ('I have a shared history with my ex, not all of it pleasant. That makes me feel uncomfortable when they are around')
+
+Drop it and come back another time with a better opening ('Perhaps this is not the best time to discuss this'). Or just wait a bit and use the silence to your advantage.
+
+Put your goal of having this conversation on the table but keep in mind that your goal must be realistic and achievable (you cannot change the way that a person behaves with a mere talk). Example: 'I don't want to feel hurt so perhaps we can discuss how we avoid/deal with these situations')
+
+Do not refute what the other has just said even though that appeared to you as a refutation of your opening remark. They will refute your refutation and so on and eventually no one will listen to what the other has to say. This requires a certain amount of emotional regulation on your part. Relax, take a deep breath and stick to the facts that you can agree upon. Your personal feelings are facts to you but not necessarily to them.
+
+Now, there is two other types of continuation for the wilful conflict mode response (note that this applies only to people who you know are normally willing to listen and regulate their emotions). You can use to ones above too but they are unlikely to be effective.
+
+avoid or divert; Example: "It doesn't matter. Maybe some other time.", then walk away. Or "I'll deal with it myself for now, see ya later" then walk away. Keep it nice and be gentle. But be forewarned that there is a limit to what people can take.
+escalate; Example "I sense that I will not be getting the kind of response I need from you at this moment in time." or "It looks to me that a discussion at this point will get us nowhere." Of course this entirely depends on what you want to salvage of the relationship because that is now in trouble. And sometimes it is better to say goodbye.
+shareimprove this answer
+answered yesterday
+
+GretchenV
+950217
+suggest improvements
+up vote
+6
+down vote
+Everything I know about NVC comes from the same Wikipedia entry you cited, and really the answer to your question is found there.
+
+The article says that "nonviolent communication" as a concept is based on the idea that "all human beings have the capacity for compassion and only resort to violence or behavior that harms themselves and others when they do not recognize more effective strategies for meeting needs". So, effective non-violent communication relies on people recognising that this is the best strategy.
+
+Really then, you can employ the concept (and may achieve the desired results in some people) but if the person with whom you are trying to communicate is overly defensive because they do not personally know a "better" way, they may still receive it as an offensive statement.
+
+It isn't really a case of people "seeing through" the statements as you describe, as I don't believe the intention of NVC is to "fool" people into being passive. If you believe that it is just a way of misrepresenting criticism of others as an expression of your own personal feelings then really you aren't fully subscribing to the methodology.
+
+It seems redundant giving you suggested wording as to what you might say when NVC "fails" as you ask when NVC itself is an interpersonal approach. But if somebody receives an "I" statement the way you describe in your examples, you could just explain the methodology by saying:
+
+That isn't what I intended to say. I was just trying to let you know how I feel personally, not criticise you / anyone else.
+
+Hopefully by explaining your intentions you not only qualify your statement, but if you really believe in the NVC model then you are also introducing them to this way of thinking.
+
+Really though, no suggested interpersonal approach is guaranteed to work with everybody. This applies both to NVC and to any answer you may read here on Stack Exchange IPS. You cannot be certain how your carefully crafted statements will be received because the other person's thought process may be completely different to yours. However, I do believe that models like this can be useful because they give us some insight into human thought process and can give us the tools to improve our communication skills.
+
+shareimprove this answer
+edited yesterday
+answered yesterday
+
+Astralbee
+11.2k12151
+suggest improvements
+up vote
+6
+down vote
+There's more to it than saying "I feel" rather than "you made me feel". It has to be sincere or people see right through it. It's more than just rephrasing, it's RE-FRAMING
+
+A: I felt scared to tell you [serious, personal thing]
+
+B: You think I'm a judgmental person?!
+
+The mistake there is you are still putting the onus on B with including "you".
+
+A: I am not comfortable talking about [serious, personal thing]
+
+would be a better way of phrasing it. If you're not sincere about addressing the issue and not the person, the person will see it as (and rightly so) manipulation.
+
+Be sincere and talk about your perspective only
+
+Also, avoid the word "feel" when you can.
+
+instead of
+
+I feel uncomfortable being around my ex
+
+try
+
+A: I don't wish to be around my ex
+
+instead of
+
+A: I felt really hurt when you did that
+
+try
+
+A: That's not an appropriate thing to do.
+
+The problem with saying "I feel" is that it can come across as SPECIAL PLEADING
+
+Like any other skill, this one takes practice and one cannot simply try it and expect it to work right away
+
+The key component to NVC is taking to onus off of the person you are addressing. It is more than just expressing your feelings, but also taking away cause for the other person to react. There is a very subtle difference, but you address the behavior, not the person. Your feelings may play a part, but the key is not to address your feelings, but the behavior you want to stop or the concept you want to convey.
+
+shareimprove this answer
+edited 12 hours ago
+answered yesterday
+
+Richard U
+7,14011647
+1
+Can you explain how this ties in to NVC? I do see the value in your advice, but for purposes of this question I'm interested in learning how to apply this particular technique. I'm new to the concept and thought (naively?) that a key component was talking about one's feelings. In particular the last example you give seems to clash with my understanding of NVC since it's now framed as an absolute vs. how I felt. – Em C yesterday
+@EmC it's a bit more subtle than just talking about your feelings, it's about taking the onus off of the other person. I edited the post, let me know if it's a good edit. – Richard U yesterday
+Thanks, that is helpful. I do realize phrasing isn't a magic bullet, part of why I'm trying this is to help myself internalize the re-framing. So while following rules helps me to stay in line, understanding the reasoning is even more useful :) – Em C yesterday
+@EmC yes, that's it exactly. You not only have to change what you say, you have to mean it. Of course, you will come across people who are genuinely interested in being obnoxious, and those you can't help. I like to put it in terms of what Dale Carnegie said about being genuinely interested in other people. The words alone only have the strength of meaning that you give them. – Richard U yesterday
+suggest improvements
+up vote
+5
+down vote
+Using an I statement is the start to a conversation, it isn't a panacea that will resolve any conversational problem. If people are interpreting your statements as judgmental, dismissing your feelings, or denying the validity of your emotions, your response is going to be rather similar regardless of whether you used an I statement or not. This isn't to mean that they aren't effective. I strongly advocate their use as one of the most effective tools to aid conversations about difficult topics.
+
+When conversations break down I've found it best to focus on my goals for the conversation and try to not get sidetracked on tangential points that get brought up. If you know that you're going to be having a difficult conversation it helps to prepare by figuring out how you feel, and what you would like to see in advance.
+
+When dealing with people who are dismissing your feelings, that's a good sign that they aren't communicating in good faith. It's helpful to give someone the benefit of the doubt the first time they do this. Point out to them that you are talking about your emotions, that they are valid, and not subject to debate. If they continue to dispute them, treat every conversation with them as if it had started with them saying "I don't care about how you feel" and act accordingly.
+
+Unfortunately sometimes you can't reach a productive end to every conversation. You have no way of knowing how someone will respond to a particular conversational technique. What you can do work on techniques which are commonly effective.
+
+shareimprove this answer
+answered yesterday
+
+sphennings
+5,24821734
+suggest improvements
+up vote
+4
+down vote
+What is the next step for this communication strategy when "I feel" statements fail, if any?
+
+First, let me suggest to rephrase "fail" - I'd rather evaluate it as not getting the response you desired... yet.
+
+A: I feel uncomfortable being around my ex
+B: That's ridiculous, you're dating someone else so you shouldn't care
+
+You continue from there, NVC-style: observation - feeling - need - request:
+
+When I hear you saying "ridiculous", I feel sad/ashamed/..., because I long for your understanding and support and hoped you would be able to help me cope in case I'd go.
+
+Notice those "I-statements" all the way. They tend to mark a statement as subjective and open up space for more than one point of view. They are used to free your communication from violence (like moral judgements, manipulation by threatening punishment for non-compliance etc.).
+
+What I appreciate about NVC is its combination of...
+
+laying out your internal responses to a given stimulus
+assert what you want from the other person in clear and direct manner - as a request.
+A: I felt really hurt when you did that
+B: Why should everyone cater to your feelings?
+
+The examples you quote seem training material for NVC master class, because B's statements - in my understanding - invalidate not only A's statements, but A as a person, which would cause me, if I was in A's shoes, pain, rage and the desire to pay back in the same currency - which of course is VC instead of NVC then.
+
+I assume that a NVC-practitioner would train self-empathy and empathy for the interlocutor and rephrase his statement as a question in NVC:
+
+Do you say this because you feel angry because you wish someone would care about your feelings and your needs? That I ask you to give something that you don't have, but would like to receive it?
+
+This follows a strategy of "first seek to understand, then to be understood". I imagine an interesting exchange could emerge from there.
+
+shareimprove this answer
+answered yesterday
+
+michi
+2,824516
+suggest improvements
+up vote
+2
+down vote
+To expand on the other answers to this question, one thing that really works with uncooperative conversation partners is to address the issue that's keeping you from communicating effectively directly.
+
+So when you sense that there is something the other person is uncomfortable with, but they don't share it, bring it up directly. If a person seems upset with you and you think that's the reason they're not being cooperative, address that. Hidden emotions are very often the cause of failing conversation. Example:
+
+You: "You seem upset with me. Is something bothering you?"
+
+Other person (ideally): "Well actually.. I have x issue because you did y"
+
+And from there you can address that problem, solve the tension and now the other person should have an easier time engaging with what you originally wanted to discuss. (source: "Never Split the Difference")
+
+Another similar and very effective option for conversations that are spiraling away from being productive is addressing the situation or what you think is causing the conversation to become unproductive. So if somebody is completely dismissive of your feelings, address that directly. "I feel like you're being dismissive of my feelings and that makes it hard for me to be open and solve our issue." (source: "Difficult Conversations", if I remember correctly)
+
+This is a very confrontational approach and I would generally recommend you only do that in situations like the ones you described in your question - when the conversation is being shut down hard by your conversation partner. It won't magically turn a bad conversation into a good one, but it's a good tool to get un-stuck and move forward.
+
+shareimprove this answer
+answered yesterday
+
+user17152
+212
+suggest improvements
+up vote
+2
+down vote
+I found NVC most useful when both are actively using it (and therefore understand the phrasing of each other better).
+
+From your examples I get the impression that this is not the case for you. If you can change that, do so, its the most promising way.
+
+Often its impossible, so I will focus on the situation where you are talking to someone who does not want to use NVC.
+
+I found it most useful to add a request right into my phrasing of emotion.
+
+Like:
+
+I feel scared to tell you X, as its very personal to me. Please take yourself some time for this conversation as it will be difficult for me.
+
+That way the other person has it easier to see that you don't think they are judgemental but instead focus more on what they actually can do right now.
+
+If you rephrase "I think you are judgemental" it will always sound that way, there is no helping it. Instead find an expression that's true to what you think and feel. e.G. "I'm afraid to talk about X as I have been hurt in the past when I talked about this topic." If you want to reference past behavior (which can sometimes be a good idea in such situations) try:
+
+When I talked to you about X you said I were just weak and should buckle up. That stung pretty hard and since then I'm afraid to talk to you about X. Please do try to accept my feelings as they are and support me growing through the situation.
+
+All in all, its a matter of practice. I tend to sit down and write NVC sentences as a kind of translation of conversations that I had, so that I can understand the person better. So when someone says "You think I'm a judgemental person?" That becomes: "I've been misjudged in my past too often and am afraid that you, too, got a wrong picture of me. Please do reassure my what you think of me."
+
+shareimprove this answer
+answered yesterday
+
+Angelo Fuchs
+1313
+suggest improvements
+up vote
+1
+down vote
+In non-violent communication, what to do when “I feel…” statements fail?
+
+This sounds all nice a rosy. There are too many situations where the other party do not care or even enjoy creating the emotions one is feeling. So before you start to address how one is feeling you have to establish the value of the communication.
+
+Put simply until the emotions are objectified, and put in a place where they can be talked about, one runs the risk of just reigniting the whole cycle.
+
+Establishing perspectives. The other party have to be capable of seeing things from anothers perspective. If the other party are super-defensive and want to justify their feelings without changing or giving ground, there is nothing that can be gained.
+
+In most social or work situations, referring these situations to others works, because often there is a personality disorder at work, and one needs a defensive approach to limiting the social impact of such behaviour to ones own life. I have had this happen a number of times, where the other party decided to exploit a situation in a way they perceived as to their benefit.
+
+There are some battles in this situation it is not worth pursuing.
+
+shareimprove this answer
+answered yesterday
+
+PeterJens
+1913
+suggest improvements
+up vote
+0
+down vote
+A: I felt scared to tell you [serious, personal thing]
+B: You think I'm a judgmental person?!
+
+You could reply to their question now -- as if what they just asked you was, "Why are you scared (to tell me)?"
+
+A: I feel uncomfortable being around my ex
+B: That's ridiculous, you're dating someone else so you shouldn't care
+
+"I'm glad you feel there's nothing to worry about." [Optionally] "And I suppose you're right." [Optionally] "Even so, I feel uncomfortable because ... and therefore ..."
+
+A: I felt really hurt when you did that
+B: Why should everyone cater to your feelings?
+
+"Not everyone, only friends."
+
+A little theory (you asked for theory not just solutions):
+
+The proposed answers to the first two, IMO, include evidence that you're listening too, to the person's reply to you and to their feelings -- a two-way street, a dialog.
+I don't know about the third; it seems to me it's questionable whether there's basis or desire for a relationship at all. You might see this as an escalation ("I threaten to end the relationship over this!"), I might see it as a de-escalation ("better to have no relationship than an abusive or inhumane one"); also talk with a stranger can still be polite and all, simply less intimate.
+
+Or, if you phrased it more politely (e.g. without contradicting them with the word "Not"), you might instead take it as an opportunity to call them or to consider them a friend of yours, and then try continue based on that view (hopefully, shared view).
+
+Your alternative reply in the third example might be:
+
+"I hope you won't do it again."
+
+The theory there is that, when they're asking about catering to your feelings (or suggesting that they can't cater, or suggesting that catering is too much to ask), what they're asking is, "What do you want me to do about it?".
+
+Their subtext is, "I'm reluctant to apologise", though I don't know why that's so without the context.
+
+My view is that the important part of an apology is the agreement to avoid repeating the offence, so by saying "I hope you won't..." you skip the apology (and let them save face) but still say what your bottom line is (and incidentally explain why you're talking to them about it).
+
+The subtext to their reply in the first example might be, "Now you're making me scared too".
+
+That subtext isn't so strong as to require you to change the subject, IMO, i.e. you can treat it as a request to clarify what you're saying about your feelings; optionally reassure them that it is about you and your feelings, and not about your seeing them as judgemental.
+
+shareimprove this answer
+edited 7 hours ago
+answered 7 hours ago
+
+ChrisW
+1733
+suggest improvements
+Your Answer
+
+ 
+Sign up or log in
+ Sign up using Google
+ Sign up using Facebook
+ Sign up using Email and Password
+ 
+Post as a guest
+Name
+
+Email
+
+required, but never shown
+By posting your answer, you agree to the privacy policy and terms of service.
+
+Not the answer you're looking for? Browse other questions tagged conflicts non-violent-communication or ask your own question.
+asked
+
+2 days ago
+
+viewed
+
+7,420 times
+
+active
+
+today
+
+99 People Chatting
+The Awkward Silence
+58 mins ago - IPS Comment Bot
+IPS Comment Bot: 58 mins agoCatija: 2 hours agoAsh: 2 hours agoMithrandir24601: 2 hours agoPheo: 2 hours agoMithrandir: 3 hours agoRichard U: 3 hours ago
+XY vs Frame Challenge
+16 hours ago - LVDV
+Related
+5
+How to be accountable for your actions but not responsible for others' needs?
+8
+How to temper conflict in close relationships
+22
+How to handle people who don't get along on Stack Exchange?
+71
+Dealing with somebody who's ignoring my very existence
+12
+How to minimize the chance of escalating an argument when requesting space to reflect?
+33
+Is a verbal response that directly expresses anger always the wrong choice?
+44
+How can I stand by my SO when she stresses out in an aggressive way?
+4
+What can I do when classmates don’t stop recording me after I ask them to stop?
+-4
+Get back my girlfriend's trust
+Hot Network Questions
+A simple program with trains and inheritance
+How long does it take for a servo to change rotation?
+Why would MS SQL server automatically remove manually created indexes?
+Why is young adult romance now being written primarily in the first person?
+Does playing more than 200 hours in BOTW erase the first bits of Heroes Path?
+Assume that we have six positive real numbers whose sum is 150. Prove that there exist two of them whose difference is less than 10.
+Is it legal to use the word "hobbit" for a race of halflings in an original work?
+PGF math broken in \foreach loop?!@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+Matrix in "slash" order
+When did bicycle chains go back to being bushingless?
+How can I ask (or determine) if someone on the phone is real without offending them?
+E7 F chord progression in key of C
+How to ask a co-worker to sneeze into their elbow?
+Is it okay to name submit button as "Select"
+Can we stay healthy if we experience microgravity for 8 hours every day?
+How does this proof of Theorem 1 in Spivak's Calculus work?
+Do some people have more Grace of God and some have less?
+UK Student Loan Repayments
+Detect heat waves
+In nuclear physics, what length year in seconds is used?
+What creature types are Gods?
+How is a mathematical formula represented in PDF?
+Father of Assembly language
+What makes academic failure different from failure in another career?
+
+4
+What can I do when classmates don’t stop recording me after I ask them to stop?
+-4
+Get back my girlfriend's trust
+Hot Network Questions
+A simple program with trains and inheritance
+How long does it take for a servo to change rotation?
+Why would MS SQL server automatically remove manually created indexes?
+Why is young adult romance now being written primarily in the first person?
+Does playing more than 200 hours in BOTW erase the first bits of Heroes Path?
+Assume that we have six positive real numbers whose sum is 150. Prove that there exist two of them whose difference is less than 10.
+Is it legal to use the word "hobbit" for a race of halflings in an original work?
+PGF math broken in \foreach loop
+Matrix in "slash" order
+When did bicycle chains go back to being bushingless?
+How can I ask (or determine) if someone on the phone is real without offending them?
+E7 F chord progression in key of C
+How to ask a co-worker to sneeze into their elbow?
+Is it okay to name submit button as "Select"
+Can we stay healthy if we experience microgravity for 8 hours every day?
+How does this proof of Theorem 1 in Spivak's Calculus work?
+Do some people have more Grace of God and some have less?
+UK Student Loan Repayments
+Detect heat waves
+In nuclear physics, what length year in seconds is used?
+What creature types are Gods?
+How is a mathematical formula represented in PDF?
+Father of Assembly language
+What makes academic failure different from failure in another career?

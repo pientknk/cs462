@@ -241,11 +241,11 @@ void server(int portNum)
 			contents += character;
 		}
 
-		/*ofstream afile;
+		ofstream afile;
 		afile.open("ServerOutput.txt");
 		afile << contents;
 		afile.close();
-		cout << "Wrote file ServerOutput.txt" << endl;*/
+		cout << "Wrote file ServerOutput.txt" << endl;
 
 		cout << "Packet " << packetNum << " received" << endl;
 		numPacketsReceived++;
