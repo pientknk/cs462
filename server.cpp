@@ -3,11 +3,11 @@
 int sockfd;
 string packet_s;
 string fileContents;
-char* packet2;
-char packetNum;
-char lastPacketNum = USCR;
+unsigned char* packet2;
+unsigned char packetNum;
+unsigned char lastPacketNum = USCR;
 int packetBytes;
-char* packetBuffer;
+unsigned char* packetBuffer;
 int packetBufferIndex;
 int payloadSize;
 int sequenceNumber_s;
@@ -17,6 +17,7 @@ int bytesReceived = 0;
 int bytesDuplicate = 0;
 bool foundEndOfPacket;
 bool isDone;
+int adjustedPayloadSize = 0;
 
 //Error introduction variables
 bool failToSendAcks = false;
@@ -86,7 +87,7 @@ void readPacket() {
 			totalBytes_s += bytes_s;
 
 			//get current char to check if this is the end of the packet
-			char currentChar = *(packetBuffer + packetBufferIndex);
+			unsigned char currentChar = *(packetBuffer + packetBufferIndex);
 			if (currentChar == ETX && *(packetBuffer + packetBufferIndex - 1) != DLE) {
 				foundEndOfPacket = true;
 
@@ -108,10 +109,9 @@ void readPacket() {
 void generatePacket() {
 	//get accurate payload size after checking for DLE's
 	payloadSize = packetBytes - PACKET_FRAME_SIZE;
-	//cout << "Payload size: " << payloadSize << endl;
-	int adjustedPayloadSize = 0;
+	adjustedPayloadSize = 0;
 	for (int i = 3; i < payloadSize + 3; i++) {
-		char packetChar = *(packetBuffer + i);
+		unsigned char packetChar = *(packetBuffer + i);
 		if (packetChar == DLE) {
 			packetChar = *(packetBuffer + i + 1);
 			if (packetChar == DLE) {
@@ -125,10 +125,10 @@ void generatePacket() {
 
 	//create string from buffer somehow
 	packet_s = "";
-	packet2 = new char[adjustedPayloadSize];
+	packet2 = new unsigned char[adjustedPayloadSize];
 	int packet2Index = 0;
 	for (int i = 3; i < payloadSize + 3; i++) {
-		char packetChar = *(packetBuffer + i);
+		unsigned char packetChar = *(packetBuffer + i);
 		if (packetChar == DLE) {
 			i++;
 			packetChar = *(packetBuffer + i);
@@ -142,6 +142,8 @@ void generatePacket() {
 			packet2Index++;
 		}
 	}
+
+	//cout << "Packet size: " << adjustedPayloadSize << endl;
 }
 
 void server(int portNum)
@@ -164,7 +166,7 @@ void server(int portNum)
 	double duration = 0.0;
 
 	//Buffer
-	packetBuffer = new char[int(MAX_PACKET_SIZE * 1.5) + PACKET_FRAME_SIZE];
+	packetBuffer = new unsigned char[int(MAX_PACKET_SIZE * 1.5) + PACKET_FRAME_SIZE];
 
 	//read in the sequence number range
 	int seqNumRange = 0;
@@ -197,7 +199,7 @@ void server(int portNum)
 				packetBytes += bytes_s;
 
 				//get current char to check if this is the end of the packet
-				char currentChar = *(packetBuffer + packetBufferIndex);
+				unsigned char currentChar = *(packetBuffer + packetBufferIndex);
 				if (currentChar == ETX && *(packetBuffer + packetBufferIndex - 1) != DLE) {
 					foundEndOfPacket = true;
 
@@ -230,20 +232,32 @@ void server(int portNum)
 		}
 		cout << endl;*/
 
+		generatePacket();
+
+		string contents = "";
+
+		for (int i = 0; i < adjustedPayloadSize; i++) {
+			unsigned char character = *(packet2 + i);
+			contents += character;
+		}
+
+		/*ofstream afile;
+		afile.open("ServerOutput.txt");
+		afile << contents;
+		afile.close();
+		cout << "Wrote file ServerOutput.txt" << endl;*/
+
 		cout << "Packet " << packetNum << " received" << endl;
 		numPacketsReceived++;
 
-		generatePacket();
-
-		uint16_t checkSumValue = gen_crc16(packet2, payloadSize);
-		//cout << "Checksum of packet char*: " << checkSumValue << endl;
+		uint16_t checkSumValue = gen_crc16(packet2, adjustedPayloadSize);
+		//cout << "Checksum of packet: " << checkSumValue << endl;
 
 		//cout << "Read in checksum: " << (char)*(packetBuffer + packetBufferIndex - 2) << " and " << (char)*(packetBuffer + packetBufferIndex - 1) << endl;
 
-		char chksum1 = (checkSumValue >> 8);
-		char chksum2 = (checkSumValue & 0xFF);
-		//cout << "Calculated checksum: " << chksum1 << endl;
-		//cout << "Calculated checksum: " << chksum2 << endl;
+		unsigned char chksum1 = (checkSumValue >> 8);
+		unsigned char chksum2 = (checkSumValue & 0xFF);
+		//cout << "Calculated checksum: " << (checkSumValue >> 8) << " " << (checkSumValue & 0xFF) << endl;
 
 		if (packetNum - '0' == sequenceNumber_s) {
 			//checksum is good
@@ -259,12 +273,9 @@ void server(int portNum)
 					//append to the file
 					myfile << packet_s;
 				}
-				else {
-					bytesDuplicate += packetBytes;
-				}
 
 				//send ack over to client with packet number
-				char* ackMsg = &packetNum;
+				unsigned char* ackMsg = &packetNum;
 
 				if (failToSendAcks) {
 					if (i == 2) {
@@ -300,11 +311,13 @@ void server(int portNum)
 				}
 			}
 			else {
+				bytesDuplicate += packetBytes;
 				cout << "Checksum for Packet " << packetNum << " has failed" << endl;
 			}
 		}
 		else {
-			cout << "Unexpected Sequence number: " << packetNum << " not sending ACK" << endl;
+			bytesDuplicate += packetBytes;
+			cout << "Unexpected Sequence number: " << packetNum << ".   Not sending ACK" << endl;
 		}
 
 

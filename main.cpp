@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
 				string preset = GetPresets();
 
 				if (preset == "SW") {
-					clientStopAndWait(portNum, 256, 2, "test.txt", 1200);
+					clientStopAndWait(portNum, 256, 2, "test.txt", 1000);
 				}
 				else if (preset == "GBN") {
 					cout << "Not configured";

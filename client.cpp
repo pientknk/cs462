@@ -4,19 +4,20 @@ int socket_;
 int bytesWritten = 0;
 int bytesResent = 0;
 int numPacketsSent = 0;
-char ack;
-char* ackBuffer = &ack;
+unsigned char ack;
+unsigned char* ackBuffer = &ack;
 int sequenceNumber_c;
 int bytes_c;
 long totalBytes_c;
 int bytesSent;
 int currentIndex = 0;
-char* packet_c;
-char* payload;
+unsigned char* packet_c;
+unsigned char* payload;
 int currentPacketSize;
 Timer timer;
 time_t startWriteUSec;
 time_t sendTime;
+int extraBytes = 0;
 
 //Error introduction variables
 bool sendWrongChecksums = false;
@@ -63,9 +64,9 @@ int callServer(string host, int portNum) {
 }
 
 int writePacket() {
-	char* packetPayloadPointer = payload + currentIndex;
-	char* packetPayload = new char[currentPacketSize];
-	strncpy(packetPayload, packetPayloadPointer, currentPacketSize);
+	unsigned char* packetPayloadPointer = payload + currentIndex;
+	unsigned char* packetPayload = new unsigned char[currentPacketSize];
+	memcpy(packetPayload, packetPayloadPointer, currentPacketSize);
 
 	//print off packet payload after copying it over from the file
 	/*cout << "Values in Packet Payload: " << endl;
@@ -79,6 +80,13 @@ int writePacket() {
 		}
 	}
 	cout << endl;*/
+
+	string contents = "";
+
+	for (int i = 0; i < currentPacketSize; i++) {
+		unsigned char character = *(packetPayload + i);
+		contents += character;
+	}
 
 	uint16_t value = gen_crc16(packetPayload, currentPacketSize);
 	//cout << "checksum: " << value << endl;
@@ -95,15 +103,17 @@ int writePacket() {
 	int adjustedPayloadSize = 0;
 	for (int i = 0; i < currentPacketSize; i++) {
 		adjustedPayloadSize++;
-		char currentPayloadChar = packetPayload[i];
+		unsigned char currentPayloadChar = packetPayload[i];
 		if (currentPayloadChar == SOH || currentPayloadChar == STX || currentPayloadChar == ETX || currentPayloadChar == DLE) {
 			adjustedPayloadSize++;
 		}
 	}
 
-	packet_c = new char[adjustedPayloadSize + PACKET_FRAME_SIZE];
+	packet_c = new unsigned char[adjustedPayloadSize + PACKET_FRAME_SIZE];
+	
+	//cout << "Size of packet: " << adjustedPayloadSize + PACKET_FRAME_SIZE << endl;
 
-	char packetNum = '0' + sequenceNumber_c;
+	unsigned char packetNum = '0' + sequenceNumber_c;
 	int packetIndex = 0;
 	int packetPayloadIndex = 0;
 
@@ -119,7 +129,7 @@ int writePacket() {
 	//assign payload of packet
 	int i = PACKET_FRAME_SIZE - zz;
 	while (packetPayloadIndex != currentPacketSize) {
-		char currentPayloadChar = packetPayload[packetPayloadIndex];
+		unsigned char currentPayloadChar = packetPayload[packetPayloadIndex];
 		if (currentPayloadChar == SOH || currentPayloadChar == STX || currentPayloadChar == ETX || currentPayloadChar == DLE) {
 			packet_c[i] = DLE;
 			i++;
@@ -173,6 +183,7 @@ int writePacket() {
 	//get updated time
 	startWriteUSec = timer.GetCurrentTimeInMicroSeconds();
 
+	
 	return write(socket_, packet_c, adjustedPayloadSize + PACKET_FRAME_SIZE);
 }
 
@@ -203,6 +214,19 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 	//get file data and setup packet
 	totalBytes_c = GetFileSize(fileName);
 	payload = ParseFile(fileName, totalBytes_c);
+
+	/*string contents = "";
+
+	for (int i = 0; i < totalBytes_c; i++) {
+		unsigned char character = *(payload + i);
+		contents += character;
+	}
+
+	ofstream myfile;
+	myfile.open("Output2.txt");
+	myfile << contents;
+
+	cout << "Wrote file" << endl;*/
 
 	//print out file contents
 	/*cout << "Value of File: " << endl;
@@ -236,9 +260,10 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 
 		/**** WRITING ****/
 		sendTime = timer.GetCurrentTimeInMicroSeconds();
-		bytes_c = writePacket();
+		extraBytes = writePacket();
+		bytes_c = currentPacketSize;
 
-		if (bytes_c <= 0)
+		if (extraBytes <= 0)
 		{
 			cout << "1. ERROR writing to socket: " << socket_ << endl;
 			break;
@@ -255,16 +280,16 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 		bytes_c = read(socket_, ackBuffer, sizeof(ack));
 
 		if (bytes_c <= 0) {
-			//cout << "2. ERROR reading from socket: " << socket_ << endl;
 			cout << "timer - sendtime: " << timer.GetCurrentTimeInMicroSeconds() - sendTime << " >= " << intervalTimeout << endl;
-			if (timer.GetCurrentTimeInMicroSeconds() - sendTime >= intervalTimeout) {
+			if (timer.GetCurrentTimeInMicroSeconds() - sendTime >= intervalTimeout * .85) {
 				cout << "Packet " << sequenceNumber_c << " **** Timed Out *****" << endl;
 				cout << "Packet " << sequenceNumber_c << " Re-transmitted" << endl;
-				bytesResent += bytesSent;
+				bytesResent += extraBytes;
 			}
 			else {
 				break;
 			}
+			
 		}
 		else {
 			//Get updated time
@@ -274,11 +299,12 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 			currentIndex += currentPacketSize;
 
 			if (bytes_c > 0) {
-				totalBytes_c -= (bytesSent - PACKET_FRAME_SIZE);
+				totalBytes_c -= bytesSent;
 			}
 
 			cout << "Ack " << sequenceNumber_c << " received. (RTT for pkt " << sequenceNumber_c << " = " << rtt << "us)" << endl;
 
+			bytesSent = extraBytes;
 			bytesWritten += bytesSent;
 			sequenceNumber_c++;
 			sequenceNumber_c %= seqNumberRange;

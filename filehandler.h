@@ -9,7 +9,7 @@
 
 using namespace std;
 
-char* ParseFile(string fileName, long fileSize);
+unsigned char* ParseFile(string fileName, long fileSize);
 
 long GetFileSize(string fileName);
 

@@ -4,7 +4,7 @@
 #include "filehandler.h"
 
 //return a string of all characters in the designated file
-char* ParseFile(string fileName, long fileSize) {
+unsigned char* ParseFile(string fileName, long fileSize) {
 	FILE *filePtr;
 	filePtr = fopen(fileName.c_str(), "rb");
 	if (filePtr == NULL) {
@@ -12,7 +12,7 @@ char* ParseFile(string fileName, long fileSize) {
 		return NULL;
 	}
 	else {
-		char *buffer = new char[fileSize];
+		unsigned char *buffer = new unsigned char[fileSize];
 		if (buffer == NULL) {
 			cerr << "Memory Error" << endl;
 			return NULL;

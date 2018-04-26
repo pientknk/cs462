@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstddef>
 
-uint16_t gen_crc16(const char *data, uint16_t size);
+//uint16_t gen_crc16(const unsigned char *data, uint16_t size);
+uint16_t gen_crc16(const unsigned char* data_p, uint16_t length);
 
 #endif
