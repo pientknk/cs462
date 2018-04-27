@@ -8,7 +8,7 @@ int numPacketsSent = 0;
 unsigned long numAcksReceived = 0;
 unsigned char ack;
 unsigned char* ackBuffer = &ack;
-int sequenceNumber_c;
+int sequenceNumber_c = 0;
 int bytes_c;
 long totalBytes_c;
 int bytesSent;
@@ -65,7 +65,7 @@ int callServer(string host, int portNum) {
 	return sockfd;
 }
 
-int writePacket(vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop) {
+int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<int> &packetsToDrop) {
 	unsigned char* packetPayloadPointer = payload + currentIndex;
 	unsigned char* packetPayload = new unsigned char[currentPacketSize];
 	memcpy(packetPayload, packetPayloadPointer, currentPacketSize);
@@ -115,17 +115,36 @@ int writePacket(vector<int> acksToLose, vector<int> packetsToDamage, vector<int>
 	int zz = 0;
 	packet_c[zz] = SOH;
 	zz++;
-	//if we should drop the ack for this packet, then make seq num 255 so the server knows
-	vector<int>::iterator it = find(acksToLose.begin(), acksToLose.end(), sequenceNumber_c);
-	if (it != acksToLose.end()) {
-		packet_c[zz] = 255;
-		zz++;
-		//TODO: remove this from the vector now?
+
+	/*cout << "ACks to lose before: " << endl;
+	for (int i = 0; i < acksToLose.size(); i++) {
+		cout << acksToLose.at(i) << " ";
+	}
+	cout << endl;*/
+
+	//if we should drop the ack for this packet, then make seq num -1 so the server knows
+	if (!acksToLose.empty()) {
+		vector<int>::iterator it = find(acksToLose.begin(), acksToLose.end(), sequenceNumber_c);
+		if (it != acksToLose.end()) {
+			packet_c[zz] = 0xFF + '0';
+			zz++;
+			acksToLose.erase(it);
+		}
+		else {
+			packet_c[zz] = packetNum;
+			zz++;
+		}
 	}
 	else {
 		packet_c[zz] = packetNum;
 		zz++;
 	}
+	
+	/*cout << "ACks to lose after: " << endl;
+	for (int i = 0; i < acksToLose.size(); i++) {
+		cout << acksToLose.at(i) << " ";
+	}
+	cout << endl;*/
 	
 	packet_c[zz] = STX;
 	zz++;
@@ -151,24 +170,34 @@ int writePacket(vector<int> acksToLose, vector<int> packetsToDamage, vector<int>
 	//assign end of header
 	packet_c[i] = ETX;
 
-	if (sendWrongChecksums) {
-		if (j == 2) {
-			packet_c[i + 1] = (value >> 8);
-			packet_c[i + 2] = (value & 0xFF);
+	/*cout << "packets to damage before: " << endl;
+	for (int i = 0; i < packetsToDamage.size(); i++) {
+		cout << packetsToDamage.at(i) << " ";
+	}
+	cout << endl;*/
 
-			j = 0;
-		}
-		else {
+	if (!packetsToDamage.empty()) {
+		vector<int>::iterator it = find(packetsToDamage.begin(), packetsToDamage.end(), sequenceNumber_c);
+		if (it != packetsToDamage.end()) {
 			packet_c[i + 1] = (value >> 6);
 			packet_c[i + 2] = (value & 0x7B);
-
-			j++;
+			packetsToDamage.erase(it);
+		}
+		else {
+			packet_c[i + 1] = (value >> 8);
+			packet_c[i + 2] = (value & 0xFF);
 		}
 	}
 	else {
 		packet_c[i + 1] = (value >> 8);
 		packet_c[i + 2] = (value & 0xFF);
 	}
+
+	/*cout << "packets to damage after: " << endl;
+	for (int i = 0; i < packetsToDamage.size(); i++) {
+		cout << packetsToDamage.at(i) << " ";
+	}
+	cout << endl;*/
 
 	//print off entire packet with * replacing
 	//printPacketReplace(adjustedPayloadSize + PACKET_FRAME_SIZE, packet_c);
@@ -193,7 +222,6 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName, in
 	}
 }
 
-//send over 255 (max user allowed is 254) as seq num so the server know's that it should "lose the ack"
 void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string fileName, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout) {
 	socket_ = callServer("thing3.cs.uwec.edu", portNum);
 
@@ -227,19 +255,59 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 
 		/**** WRITING ****/
 		sendTime = timer.GetCurrentTimeInMicroSeconds();
-		extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop);
-		bytes_c = currentPacketSize;
 
-		if (extraBytes <= 0)
-		{
-			cout << "1. ERROR writing to socket: " << socket_ << endl;
-			break;
+		if (!packetsToDrop.empty()) {
+			vector<int>::iterator it = find(packetsToDrop.begin(), packetsToDrop.end(), sequenceNumber_c);
+			if (it != packetsToDrop.end()) {
+				packetsToDrop.erase(it);
+				cout << "**** Dropping packet " << sequenceNumber_c << " *****" << endl;
+
+				int adjustedPayloadSize = 0;
+				for (int i = 0; i < currentPacketSize; i++) {
+					adjustedPayloadSize++;
+					unsigned char currentPayloadChar = *(payload + currentIndex + i);
+					if (currentPayloadChar == SOH || currentPayloadChar == STX || currentPayloadChar == ETX || currentPayloadChar == DLE) {
+						adjustedPayloadSize++;
+					}
+				}
+
+				extraBytes = adjustedPayloadSize + PACKET_FRAME_SIZE;
+				bytes_c = currentPacketSize;
+				bytesSent = bytes_c;
+				numPacketsSent++;
+			}
+			else {
+				extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop);
+				bytes_c = currentPacketSize;
+
+				if (extraBytes <= 0)
+				{
+					cout << "1. ERROR writing to socket: " << socket_ << endl;
+					break;
+				}
+				else {
+					bytesSent = bytes_c;
+					numPacketsSent++;
+
+					cout << "Packet " << sequenceNumber_c << " sent" << endl;
+				}
+			}
 		}
 		else {
-			bytesSent = bytes_c;
-			numPacketsSent++;
+			extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop);
+			bytes_c = currentPacketSize;
 
-			cout << "Packet " << sequenceNumber_c << " sent" << endl;
+			if (extraBytes <= 0)
+			{
+				cout << "1. ERROR writing to socket: " << socket_ << endl;
+				break;
+			}
+			else {
+				bytesSent = bytes_c;
+				numPacketsSent++;
+
+				cout << "Packet " << sequenceNumber_c << " sent" << endl;
+			}
 		}
 
 		/**** READING ****/
@@ -247,7 +315,7 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 		bytes_c = read(socket_, ackBuffer, sizeof(ack));
 
 		if (bytes_c <= 0) {
-			cout << "timer - sendtime: " << timer.GetCurrentTimeInMicroSeconds() - sendTime << " >= " << intervalTimeout << endl;
+			//cout << "timer - sendtime: " << timer.GetCurrentTimeInMicroSeconds() - sendTime << " >= " << intervalTimeout << endl;
 			if (numAcksReceived < maxPackets) {
 				cout << "Packet " << sequenceNumber_c << " **** Timed Out *****" << endl;
 				cout << "Packet " << sequenceNumber_c << " Re-transmitted" << endl;
