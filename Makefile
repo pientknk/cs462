@@ -1,9 +1,9 @@
 CC = g++
 CFLAGS =  -std=c++11 -lm -pedantic
 
-CCFILES = main.cpp server.cpp client.cpp packet.cpp filehandler.cpp crc16Checksum.cpp timer.cpp userinput.cpp
+CCFILES = main.cpp server.cpp client.cpp packet.cpp filehandler.cpp crc16Checksum.cpp timer.cpp userinput.cpp printing.cpp
 
-OFILES = main.o server.o client.o packet.o filehandler.o crc16Checksum.o timer.o userinput.o
+OFILES = main.o server.o client.o packet.o filehandler.o crc16Checksum.o timer.o userinput.o printing.o
 
 all: link
 
@@ -27,6 +27,9 @@ filehandler.o: filehandler.cpp filehandler.h
 	
 userinput.o: userinput.cpp userinput.h
 	$(CC) -c userinput.cpp $(CFLAGS)
+	
+printing.o: printing.cpp printing.h
+	$(CC) -c printing.cpp $(CFLAGS)
 	
 clean:
 	rm -f *.o *.*~ packet

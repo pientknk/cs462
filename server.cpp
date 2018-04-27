@@ -1,11 +1,14 @@
 #include "server.h"
+#include "printing.h"
 
 int sockfd;
 string packet_s;
 string fileContents;
 unsigned char* packet2;
 unsigned char packetNum;
+int packetNumInt;
 unsigned char lastPacketNum = USCR;
+int lastPacketNumInt = 0;
 int packetBytes;
 unsigned char* packetBuffer;
 int packetBufferIndex;
@@ -21,6 +24,7 @@ int adjustedPayloadSize = 0;
 
 //Error introduction variables
 bool failToSendAcks = false;
+bool shouldLoseAck = false;
 int i;
 
 //initialize socket for the server
@@ -162,7 +166,7 @@ void server(int portNum)
 	//Time variables
 	Timer timer;
 	time_t startTime = timer.GetTimeInSeconds();
-	suseconds_t startTimeUSecs = timer.GetTimeInMicroSeconds();
+	suseconds_t startTimeUSecs = timer.GetCurrentTimeInMicroSeconds();
 	double duration = 0.0;
 
 	//Buffer
@@ -219,22 +223,11 @@ void server(int portNum)
 			break;
 		}
 
-		// the read in data for the entire packet
-		/*cout << "Values in Packet (" << packetBytes << " bytes_s): " << endl;
-		for (int i = 0; i < packetBytes; i++) {
-			char character = *(packetBuffer + i);
-			if (character == SOH || character == STX || character == ETX || character == DLE || character == NUL) {
-				cout << "*";
-			}
-			else {
-				cout << character;
-			}
-		}
-		cout << endl;*/
+		//printPacketReplace(packetBytes, packetBuffer);
 
 		generatePacket();
 
-		string contents = "";
+		/*string contents = "";
 
 		for (int i = 0; i < adjustedPayloadSize; i++) {
 			unsigned char character = *(packet2 + i);
@@ -245,24 +238,33 @@ void server(int portNum)
 		afile.open("ServerOutput.txt");
 		afile << contents;
 		afile.close();
-		cout << "Wrote file ServerOutput.txt" << endl;
+		cout << "Wrote file ServerOutput.txt" << endl;*/
 
-		cout << "Packet " << packetNum << " received" << endl;
+		packetNumInt = packetNum - '0';
+
+		cout << "Packet " << packetNumInt << " received" << endl;
 		numPacketsReceived++;
 
 		uint16_t checkSumValue = gen_crc16(packet2, adjustedPayloadSize);
-		//cout << "Checksum of packet: " << checkSumValue << endl;
-
+		//printCheckSum(checkSumValue);
+		//printCheckSumIndividual(checkSumValue);
 		//cout << "Read in checksum: " << (char)*(packetBuffer + packetBufferIndex - 2) << " and " << (char)*(packetBuffer + packetBufferIndex - 1) << endl;
 
 		unsigned char chksum1 = (checkSumValue >> 8);
 		unsigned char chksum2 = (checkSumValue & 0xFF);
-		//cout << "Calculated checksum: " << (checkSumValue >> 8) << " " << (checkSumValue & 0xFF) << endl;
 
-		if (packetNum - '0' == sequenceNumber_s) {
+		//check for fake loss of an ack
+		if (packetNumInt == MAX_SEQ_NUM_RANGE + 1) {
+			shouldLoseAck = true;
+		}
+		else {
+			shouldLoseAck = false;
+		}
+		
+		if (packetNumInt == sequenceNumber_s || shouldLoseAck) {
 			//checksum is good
 			if (chksum1 == *(packetBuffer + packetBufferIndex - 2) && chksum2 == *(packetBuffer + packetBufferIndex - 1)) {
-				cout << "Checksum for Packet " << packetNum << " was OK" << endl;
+				cout << "Checksum for Packet " << packetNumInt << " was OK" << endl;
 
 				/**** WRITING ****/
 				bytes_s = 0;
@@ -277,24 +279,12 @@ void server(int portNum)
 				//send ack over to client with packet number
 				unsigned char* ackMsg = &packetNum;
 
-				if (failToSendAcks) {
-					if (i == 2) {
-						if (!write(sockfd, ackMsg, sizeof(packetNum))) {
-							cout << "2. ERROR writing to socket: " << sockfd << endl;
-							break;
-						}
-						else {
-							cout << "Ack " << packetNum << " sent" << endl;
-							sequenceNumber_s++;
-							sequenceNumber_s %= seqNumRange;
-
-							totalBytes_s += packetBytes;
-						}
-						i = 0;
-					}
-					else {
-						i++;
-					}
+				if (shouldLoseAck) {
+					cout << "Losing ACK..." << endl;
+					sequenceNumber_s++;
+					sequenceNumber_s %= seqNumRange;
+					totalBytes_s += packetBytes;
+					bytesDuplicate += packetBytes;
 				}
 				else {
 					if (!write(sockfd, ackMsg, sizeof(packetNum))) {
@@ -302,7 +292,7 @@ void server(int portNum)
 						break;
 					}
 					else {
-						cout << "Ack " << packetNum << " sent" << endl;
+						cout << "Ack " << packetNumInt << " sent" << endl;
 						sequenceNumber_s++;
 						sequenceNumber_s %= seqNumRange;
 
@@ -312,54 +302,30 @@ void server(int portNum)
 			}
 			else {
 				bytesDuplicate += packetBytes;
-				cout << "Checksum for Packet " << packetNum << " has failed" << endl;
+				cout << "Checksum for Packet " << packetNumInt << " has failed" << endl;
 			}
 		}
 		else {
 			bytesDuplicate += packetBytes;
-			cout << "Unexpected Sequence number: " << packetNum << ".   Not sending ACK" << endl;
+			cout << "Unexpected Sequence number: " << packetNumInt << ".   Not sending ACK" << endl;
 		}
 
 
 		//printout of payload after taking out any DLE's
-		/*	cout << "**** Values in Payload (" << adjustedPayloadSize << " bytes_s): " << endl;
-		for (int i = 0; i < adjustedPayloadSize; i++) {
-			cout << packet2[i];
-		}
-		cout << endl;*/
+		//printPayload(adjustedPayloadSize, packet2);
 
 		//print out value of payload with * to represent our special characters and NUL
-		/*cout << "**** Values in Payload (" << adjustedPayloadSize << " bytes_s): " << endl;
-		for (int i = 0; i < adjustedPayloadSize; i++) {
-			char character = packet2[i];
-			if (character == SOH || character == STX || character == ETX || character == DLE || character == NUL) {
-				cout << "*";
-			}
-			else {
-				cout << character;
-			}
-		}
-		cout << endl;*/
-
-		//cout << "To: thing2.cs.uwec.edu" << endl << endl;
+		//printPayloadReplace(adjustedPayloadSize, packet2);
 	}
 
 	myfile.close();
 
 	cout << "Session successfully terminated" << endl;
 
-	double Uduration = (timer.GetTimeInMicroSeconds() - startTimeUSecs);
+	double Uduration = (timer.GetCurrentTimeInMicroSeconds() - startTimeUSecs);
+	int lastPacketNumInt = lastPacketNum - '0';
 
-	cout.precision(5);
-	cout << endl << "Last packet # received: " << lastPacketNum << endl;
-	cout << "Total bytes received: " << bytesReceived + bytesDuplicate << " bytes" << endl;
-	cout << "Number of original packets received: " << bytesReceived << " bytes" << endl;
-	cout << "Number of retransmitted packets received: " << bytesDuplicate << " bytes" << endl;
-	cout << "Number of packets received: " << numPacketsReceived << endl;
-	cout << "Total elapsed time: " << Uduration / 1000000 << "s" << endl;
-	cout << "md5sum: " << endl;
-	system("md5sum Output.txt");
-	cout << endl;
+	printServerStats(lastPacketNumInt, bytesReceived, bytesDuplicate, numPacketsReceived, Uduration);
 
 	close(ss);
 	close(sockfd);

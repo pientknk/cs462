@@ -1,9 +1,11 @@
 #include "client.h"
+#include "printing.h"
 
 int socket_;
 int bytesWritten = 0;
 int bytesResent = 0;
 int numPacketsSent = 0;
+unsigned long numAcksReceived = 0;
 unsigned char ack;
 unsigned char* ackBuffer = &ack;
 int sequenceNumber_c;
@@ -63,25 +65,18 @@ int callServer(string host, int portNum) {
 	return sockfd;
 }
 
-int writePacket() {
+int writePacket(vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop) {
 	unsigned char* packetPayloadPointer = payload + currentIndex;
 	unsigned char* packetPayload = new unsigned char[currentPacketSize];
 	memcpy(packetPayload, packetPayloadPointer, currentPacketSize);
 
-	//print off packet payload after copying it over from the file
-	/*cout << "Values in Packet Payload: " << endl;
-	for (int i = 0; i < currentPacketSize; i++) {
-		char character = *(packetPayload + i);
-		if (character == SOH || character == STX || character == ETX || character == DLE || character == NUL) {
-			cout << "*";
-		}
-		else {
-			cout << character;
-		}
-	}
-	cout << endl;*/
+	//print off current packet payload from file
+	//printPayload(currentPacketSize, packetPayload);
 
-	string contents = "";
+	//print off packet payload after copying it over from the file, replacing some chars
+	//printPayloadReplace(currentPacketSize, packetPayload);
+
+	/*string contents = "";
 
 	for (int i = 0; i < currentPacketSize; i++) {
 		unsigned char character = *(packetPayload + i);
@@ -92,18 +87,11 @@ int writePacket() {
 	afile.open("ClientOutput.txt");
 	afile << contents;
 	afile.close();
-	cout << "Wrote file ClientOutput.txt" << endl;
+	cout << "Wrote file ClientOutput.txt" << endl;*/
 
 	uint16_t value = gen_crc16(packetPayload, currentPacketSize);
-	//cout << "checksum: " << value << endl;
-
-	//uint16_t value2 = gen_crc16(packetPayload, sizeof(packetPayload));
-	//cout << "Value2: " << value2 << endl;
-
-	/*for (int i = 0; i < currentPacketSize; i++) {
-		cout << *(packetPayload + i);
-	}
-	cout << endl;*/
+	//printCheckSumIndividual(value);
+	//printCheckSum(value);
 
 	//packet vars
 	int adjustedPayloadSize = 0;
@@ -127,8 +115,18 @@ int writePacket() {
 	int zz = 0;
 	packet_c[zz] = SOH;
 	zz++;
-	packet_c[zz] = packetNum;
-	zz++;
+	//if we should drop the ack for this packet, then make seq num 255 so the server knows
+	vector<int>::iterator it = find(acksToLose.begin(), acksToLose.end(), sequenceNumber_c);
+	if (it != acksToLose.end()) {
+		packet_c[zz] = 255;
+		zz++;
+		//TODO: remove this from the vector now?
+	}
+	else {
+		packet_c[zz] = packetNum;
+		zz++;
+	}
+	
 	packet_c[zz] = STX;
 	zz++;
 
@@ -171,24 +169,12 @@ int writePacket() {
 		packet_c[i + 1] = (value >> 8);
 		packet_c[i + 2] = (value & 0xFF);
 	}
-	//cout << "Setting checsum to: " << (value >> 8) << " and " << (value & 0xFF) << endl;
 
-	//print off values of packet
-	/*cout << "Values in packet_c: " << endl;
-	for (int i = 0; i < (adjustedPayloadSize + PACKET_FRAME_SIZE); i++) {
-		char character = *(packet_c + i);
-		if (character == SOH || character == STX || character == ETX || character == DLE || character == NUL) {
-			cout << "*";
-		}
-		else {
-			cout << character;
-		}
-	}
-	cout << endl;*/
+	//print off entire packet with * replacing
+	//printPacketReplace(adjustedPayloadSize + PACKET_FRAME_SIZE, packet_c);
 
 	//get updated time
 	startWriteUSec = timer.GetCurrentTimeInMicroSeconds();
-
 	
 	return write(socket_, packet_c, adjustedPayloadSize + PACKET_FRAME_SIZE);
 }
@@ -196,7 +182,7 @@ int writePacket() {
 void client(int portNum, int packetSize, int seqNumberRange, string fileName, int protocol, int slidingWindowSize, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout)
 {
 	if (protocol == Protocol::SW) {
-		clientStopAndWait(portNum, packetSize, seqNumberRange, fileName, intervalTimeout);
+		clientStopAndWait(portNum, packetSize, seqNumberRange, fileName, acksToLose, packetsToDamage, packetsToDrop, intervalTimeout);
 	}
 	else if (protocol == Protocol::GBN) {
 		//clientGBN(portNum, packetSize, seq);
@@ -207,10 +193,9 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName, in
 	}
 }
 
-void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string fileName, int intervalTimeout) {
+//send over 255 (max user allowed is 254) as seq num so the server know's that it should "lose the ack"
+void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string fileName, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout) {
 	socket_ = callServer("thing3.cs.uwec.edu", portNum);
-	/*double timeoutInSeconds = (double)intervalTimeout / (double)1000000;
-	cout << timeoutInSeconds << endl;*/
 
 	struct timeval sockTimeout;
 	sockTimeout.tv_sec = 0;
@@ -221,35 +206,11 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 	totalBytes_c = GetFileSize(fileName);
 	payload = ParseFile(fileName, totalBytes_c);
 
-	/*string contents = "";
-
-	for (int i = 0; i < totalBytes_c; i++) {
-		unsigned char character = *(payload + i);
-		contents += character;
-	}
-
-	ofstream myfile;
-	myfile.open("Output2.txt");
-	myfile << contents;
-
-	cout << "Wrote file" << endl;*/
-
-	//print out file contents
-	/*cout << "Value of File: " << endl;
-	for (int i = 0; i < totalBytes_c; i++) {
-	char character = *(payload + i);
-	if (character == SOH || character == STX || character == ETX || character == DLE || character == NUL) {
-	cout << "*";
-	}
-	else {
-	cout << character;
-	}
-	}
-	cout << endl;*/
+	unsigned long maxPackets = ceil((double)totalBytes_c / (double)packetSize);
 
 	//Time variables
 	time_t startTime = timer.GetTimeInSeconds();
-	time_t startTimeUSecs = timer.GetTimeInMicroSeconds();
+	time_t startTimeUSecs = timer.GetCurrentTimeInMicroSeconds();
 	double duration = 0.0;
 
 	//Send over Packet Sequence Number Range information
@@ -266,7 +227,7 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 
 		/**** WRITING ****/
 		sendTime = timer.GetCurrentTimeInMicroSeconds();
-		extraBytes = writePacket();
+		extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop);
 		bytes_c = currentPacketSize;
 
 		if (extraBytes <= 0)
@@ -287,15 +248,14 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 
 		if (bytes_c <= 0) {
 			cout << "timer - sendtime: " << timer.GetCurrentTimeInMicroSeconds() - sendTime << " >= " << intervalTimeout << endl;
-			//if (timer.GetCurrentTimeInMicroSeconds() - sendTime >= intervalTimeout * .85) {
+			if (numAcksReceived < maxPackets) {
 				cout << "Packet " << sequenceNumber_c << " **** Timed Out *****" << endl;
 				cout << "Packet " << sequenceNumber_c << " Re-transmitted" << endl;
 				bytesResent += extraBytes;
-			/*}
+			}
 			else {
 				break;
-			}*/
-			
+			}
 		}
 		else {
 			//Get updated time
@@ -314,6 +274,8 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 			bytesWritten += bytesSent;
 			sequenceNumber_c++;
 			sequenceNumber_c %= seqNumberRange;
+			numAcksReceived++;
+
 		}
 	}
 
@@ -328,24 +290,13 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 	}
 
 	// get updated time
-	double Uduration = (timer.GetTimeInMicroSeconds() - startTimeUSecs);
+	double Uduration = (timer.GetCurrentTimeInMicroSeconds() - startTimeUSecs);
 	double throughput = ((double)bytesWritten / (double)Uduration);
 
 	const char* systemMD5 = ("md5sum " + fileName).c_str();
 
 	//print stats
-	cout.precision(5);
-	cout << endl << "Total bytes sent: " << bytesWritten + bytesResent << " bytes" << endl;
-	cout << "Number of original packets sent: " << bytesWritten << " bytes" << endl;
-	cout << "Number of retransmitted packets sent: " << bytesResent << " bytes" << endl;
-	cout << "Number of packets sent: " << numPacketsSent << endl;
-	cout << "Total elapsed time: " << Uduration / 1000000 << "s" << endl;
-	cout << "Throughput (Mbps): " << throughput << endl;
-	cout << "md5sum: " << endl;
-	system(systemMD5);
-	cout << endl;
+	printClientStats(bytesWritten, bytesResent, numPacketsSent, throughput, Uduration, systemMD5);
 
 	close(socket_);
-
-	//cout << endl << "To: thing3.cs.uwec.edu" << endl << endl;
 }

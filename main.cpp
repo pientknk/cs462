@@ -18,6 +18,7 @@ int main(int argc, char **argv) {
 				server(portNum);
 			}
 			else if (!strcmp(argv[2], "-c")) {
+				cout.precision(5);
 				int packetSizeInBytes = DEFAULT_PACKET_SIZE;
 				int seqNumberRange = DEFAULT_SEQ_NUM_RANGE;
 				vector<int> acksToLose;
@@ -27,7 +28,7 @@ int main(int argc, char **argv) {
 				string preset = GetPresets();
 
 				if (preset == "SW") {
-					clientStopAndWait(portNum, 256, 2, "test.txt", 1000);
+					clientStopAndWait(portNum, 256, 2, "test.txt", acksToLose, packetsToDamage, packetsToDrop, 1000);
 				}
 				else if (preset == "GBN") {
 					cout << "Not configured";
