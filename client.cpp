@@ -65,10 +65,15 @@ int callServer(string host, int portNum) {
 	return sockfd;
 }
 
-int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<int> &packetsToDrop) {
-	unsigned char* packetPayloadPointer = payload + currentIndex;
+int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<int> &packetsToDrop, deque<unsigned char*> *windowContents, unsigned char* packetPointer) {
 	unsigned char* packetPayload = new unsigned char[currentPacketSize];
-	memcpy(packetPayload, packetPayloadPointer, currentPacketSize);
+	if(packetPointer == NULL){
+		unsigned char* packetPayloadPointer = payload + currentIndex;
+		memcpy(packetPayload, packetPayloadPointer, currentPacketSize);
+	}
+	else{
+		memcpy(packetPayload, packetPointer, currentPacketSize);
+	}
 
 	//print off current packet payload from file
 	//printPayload(currentPacketSize, packetPayload);
@@ -192,6 +197,10 @@ int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<in
 		packet_c[i + 1] = (value >> 8);
 		packet_c[i + 2] = (value & 0xFF);
 	}
+	
+	if(windowContents != NULL){
+		(*windowContents).push_back(packetPayload);
+	}
 
 	/*cout << "packets to damage after: " << endl;
 	for (int i = 0; i < packetsToDamage.size(); i++) {
@@ -235,7 +244,7 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName, in
 	}
 	else{
 		if (protocol == Protocol::GBN) {
-			//clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout);
+			clientGBN(portNum, packetSize, seqNumberRange, fileName, acksToLose, packetsToDamage, packetsToDrop, intervalTimeout, slidingWindowSize);
 		}
 		//selective repeat
 		else {
@@ -283,7 +292,7 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 				numPacketsSent++;
 			}
 			else {
-				extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop);
+				extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, NULL, NULL);
 				bytes_c = currentPacketSize;
 
 				if (extraBytes <= 0)
@@ -300,7 +309,7 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 			}
 		}
 		else {
-			extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop);
+			extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, NULL, NULL);
 			bytes_c = currentPacketSize;
 
 			if (extraBytes <= 0)
@@ -376,12 +385,14 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout, int sws) {
 	int sendingWindowSize = sws;
 	int lastAckReceived = -1;
+	bool didReceiveLastAck = true;
 	int lastFrameSent = -1;
 	int expectedPacketNum = -1;
 	unsigned long maxPackets = ceil((double)totalBytes_c / (double)packetSize);
 	numPacketsSent = 0;
 	int windowCapacity = 0;
 	size_t* st;
+	deque<unsigned char*> windowContents;
 
 	//Time variables
 	time_t startTimeUSecs = timer.GetCurrentTimeInMicroSeconds();
@@ -394,25 +405,53 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 
 		/**** WRITING ****/
 		sendTime = timer.GetCurrentTimeInMicroSeconds();
-		while(windowCapacity < sendingWindowSize && numPacketsSent < maxPackets){
-			extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop);
-			bytes_c = currentPacketSize;
+		if(!didReceiveLastAck){
+			if(!windowContents.empty()){
+				deque<unsigned char*>::iterator it = windowContents.begin();
+				while(it != windowContents.end()){
+					it++;
+					extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, &windowContents, *it);
+					bytes_c = currentPacketSize;
 
-			if (extraBytes <= 0)
-			{
-				cout << "1. ERROR writing to socket: " << socket_ << endl;
-				break;
-			}
-			else {
-				bytesSent = bytes_c;
-				lastFrameSent = sequenceNumber_c;
-				windowCapacity++;
-				numPacketsSent++;
+					if (extraBytes <= 0)
+					{
+						cout << "1. ERROR writing to socket: " << socket_ << endl;
+						break;
+					}
+					else {
+						bytesSent = bytes_c;
+						lastFrameSent = sequenceNumber_c;
+						windowCapacity++;
+						numPacketsSent++;
 
-				cout << "Packet " << sequenceNumber_c << " sent" << endl;
-				sequenceNumber_c++;
+						cout << "Packet " << sequenceNumber_c << " sent" << endl;
+						sequenceNumber_c++;
+					}
+				}
 			}
 		}
+		else{
+			while(windowCapacity < sendingWindowSize && numPacketsSent < maxPackets){
+				extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, &windowContents, NULL);
+				bytes_c = currentPacketSize;
+
+				if (extraBytes <= 0)
+				{
+					cout << "1. ERROR writing to socket: " << socket_ << endl;
+					break;
+				}
+				else {
+					bytesSent = bytes_c;
+					lastFrameSent = sequenceNumber_c;
+					windowCapacity++;
+					numPacketsSent++;
+
+					cout << "Packet " << sequenceNumber_c << " sent" << endl;
+					sequenceNumber_c++;
+				}
+			}
+		}
+		
 
 		/**** READING ****/
 		bytes_c = 0;
@@ -427,11 +466,13 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 					bytesResent += extraBytes;
 				}
 				else {
+					didReceiveLastAck = false;
 					break;
 				}
 			}
 			else {
 				if(expectedPacketNum == (*ackBuffer - '0')) {
+					windowContents.pop_front();
 					//Get updated time
 					time_t readTime = timer.GetCurrentTimeInMicroSeconds();
 					time_t rtt = readTime - sendTime;
@@ -457,6 +498,7 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 				}
 				else {
 					cout << "Unexpected Ack: " << "Ack " << (*ackBuffer - '0') << " instead of Ack "<< expectedPacketNum << endl;
+					didReceiveLastAck = false;
 				}
 			}
 		}
