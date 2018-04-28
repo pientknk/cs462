@@ -269,7 +269,7 @@ void server(int portNum)
 		unsigned char chksum2 = (checkSumValue & 0xFF);
 
 		//check for fake loss of an ack
-		if (packetNumInt == MAX_SEQ_NUM_RANGE + 1) {
+		if (packetNumInt == -1) {
 			shouldLoseAck = true;
 		}
 		else {
@@ -277,8 +277,13 @@ void server(int portNum)
 		}
 		
 		if (packetNumInt == sequenceNumber_s || shouldLoseAck) {
+			if (shouldLoseAck) {
+				cout << "***** Losing ACK... ****" << endl;
+				totalBytes_s += packetBytes;
+				bytesDuplicate += packetBytes;
+			}
 			//checksum is good
-			if (chksum1 == *(packetBuffer + packetBufferIndex - 2) && chksum2 == *(packetBuffer + packetBufferIndex - 1)) {
+			else if (chksum1 == *(packetBuffer + packetBufferIndex - 2) && chksum2 == *(packetBuffer + packetBufferIndex - 1)) {
 				cout << "Checksum for Packet " << packetNumInt << " was OK" << endl;
 
 				/**** WRITING ****/
@@ -294,25 +299,15 @@ void server(int portNum)
 				//send ack over to client with packet number
 				unsigned char* ackMsg = &packetNum;
 
-				if (shouldLoseAck) {
-					cout << "Losing ACK..." << endl;
+				if (!write(sockfd, ackMsg, sizeof(packetNum))) {
+					cout << "2. ERROR writing to socket: " << sockfd << endl;
+					break;
+				}
+				else {
+					cout << "Ack " << packetNumInt << " sent" << endl;
 					sequenceNumber_s++;
 					sequenceNumber_s %= seqNumRange;
 					totalBytes_s += packetBytes;
-					bytesDuplicate += packetBytes;
-				}
-				else {
-					if (!write(sockfd, ackMsg, sizeof(packetNum))) {
-						cout << "2. ERROR writing to socket: " << sockfd << endl;
-						break;
-					}
-					else {
-						cout << "Ack " << packetNumInt << " sent" << endl;
-						sequenceNumber_s++;
-						sequenceNumber_s %= seqNumRange;
-
-						totalBytes_s += packetBytes;
-					}
 				}
 			}
 			else {

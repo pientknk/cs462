@@ -23,7 +23,7 @@ using namespace std;
 
 int callServer(string host, int portNum);
 
-int writePacket(vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop);
+int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<int> &packetsToDrop);
 
 void client(int portNum, int packetSize, int seqNumberRange, string fileName, int protocol, int slidingWindowSize, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout);
 
