@@ -28,4 +28,6 @@ int serverSocketAccept(int serverSocket);
 
 void server(int portNum);
 
+void serverStopAndWait(int portNum, int ss, int seqNumRange);
+
 #endif

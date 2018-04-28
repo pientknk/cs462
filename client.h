@@ -29,4 +29,6 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName, in
 
 void clientStopAndWait(int portNum, int packetSize, int seqNumRange, string fileName, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout);
 
+void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout);
+
 #endif

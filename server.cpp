@@ -6,6 +6,7 @@ string packet_s;
 string fileContents;
 unsigned char* packet2;
 unsigned char packetNum;
+int numPacketsReceived = 0;
 int packetNumInt;
 unsigned char lastPacketNum = USCR;
 int lastPacketNumInt = 0;
@@ -153,7 +154,7 @@ void generatePacket() {
 void server(int portNum)
 {
 	sequenceNumber_s = 0;
-	int numPacketsReceived = 0;
+	numPacketsReceived = 0;
 	totalBytes_s = 0;
 	bytes_s = 0;
 	packetBytes = 0;
@@ -165,7 +166,6 @@ void server(int portNum)
 
 	//Time variables
 	Timer timer;
-	time_t startTime = timer.GetTimeInSeconds();
 	suseconds_t startTimeUSecs = timer.GetCurrentTimeInMicroSeconds();
 	double duration = 0.0;
 
@@ -178,10 +178,22 @@ void server(int portNum)
 	if (!read(sockfd, seqNumRangePointer, sizeof(int))) {
 		//cout << "1. ERROR reading from socket: " << sockfd << endl;
 	}
-
-	ofstream myfile;
-	myfile.open("Output.txt");
-
+	
+	//read in the protocol to expected
+	char* protocolInfo = new char[2];
+	
+	if (!read(sockfd, protocolInfo, sizeof(protocolInfo))) {
+		//cout << "1. ERROR reading from socket: " << sockfd << endl;
+	}
+	
+	string protocol(protocolInfo);
+	
+	if (protocol == "SW") {
+		//serverStopAndWait(portNum, ss, seqNumRange);
+		
+		ofstream myfile;
+		myfile.open("Output.txt");
+	
 	isDone = false;
 	while (!isDone) {
 		/**** READING ****/
@@ -197,6 +209,9 @@ void server(int portNum)
 			if (bytes_s <= 0) {
 				//cout << "1. ERROR reading from socket: " << sockfd << endl;
 				isDone = true;
+				
+				cout << "bytes_s: " << bytes_s << endl;
+				cout << "error: " << strerror(errno) << endl;
 				break;
 			}
 			else {
@@ -316,9 +331,19 @@ void server(int portNum)
 
 		//print out value of payload with * to represent our special characters and NUL
 		//printPayloadReplace(adjustedPayloadSize, packet2);
-	}
-
+	}	
+	
 	myfile.close();
+	}
+	else{
+		if (protocol == "GBN") {
+			//serverGBN(seqNumRange);
+		}
+		//selective repeat
+		else {
+	
+		}
+	}
 
 	cout << "Session successfully terminated" << endl;
 
@@ -329,4 +354,148 @@ void server(int portNum)
 
 	close(ss);
 	close(sockfd);
+}
+
+void serverStopAndWait(int portNum, int ss, int seqNumRange) {
+	ofstream myfile;
+	myfile.open("Output.txt");
+	
+	isDone = false;
+	while (!isDone) {
+		/**** READING ****/
+		cout << "Expected seq#: " << sequenceNumber_s << endl;
+		foundEndOfPacket = false;
+		packetBufferIndex = 0;
+		packetBytes = 0;
+		packetNum = 'Z';
+
+		//readPacket();
+		while (!foundEndOfPacket) {
+			bytes_s = read(sockfd, packetBuffer + packetBufferIndex, 1); //if slow, read in as much as we can and loop through the buffer to see if there is an ETX
+			if (bytes_s <= 0) {
+				//cout << "1. ERROR reading from socket: " << sockfd << endl;
+				isDone = true;
+
+				break;
+			}
+			else {
+				packetBytes += bytes_s;
+
+				//get current char to check if this is the end of the packet
+				unsigned char currentChar = *(packetBuffer + packetBufferIndex);
+				if (currentChar == ETX && *(packetBuffer + packetBufferIndex - 1) != DLE) {
+					foundEndOfPacket = true;
+
+					//read in the checksum
+					bytes_s = read(sockfd, packetBuffer + packetBufferIndex + 1, 2);
+					packetBytes += bytes_s;
+					packetBufferIndex += bytes_s;
+				}
+
+				packetBufferIndex++;
+				if (packetBytes == 2) {
+					packetNum = currentChar;
+				}
+			}
+		}
+		if (isDone) {
+			break;
+		}
+
+		//printPacketReplace(packetBytes, packetBuffer);
+
+		generatePacket();
+
+		/*string contents = "";
+
+		for (int i = 0; i < adjustedPayloadSize; i++) {
+			unsigned char character = *(packet2 + i);
+			contents += character;
+		}
+
+		ofstream afile;
+		afile.open("ServerOutput.txt");
+		afile << contents;
+		afile.close();
+		cout << "Wrote file ServerOutput.txt" << endl;*/
+
+		packetNumInt = packetNum - '0';
+
+		cout << "Packet " << packetNumInt << " received" << endl;
+		numPacketsReceived++;
+
+		uint16_t checkSumValue = gen_crc16(packet2, adjustedPayloadSize);
+		//printCheckSum(checkSumValue);
+		//printCheckSumIndividual(checkSumValue);
+		//cout << "Read in checksum: " << (char)*(packetBuffer + packetBufferIndex - 2) << " and " << (char)*(packetBuffer + packetBufferIndex - 1) << endl;
+
+		unsigned char chksum1 = (checkSumValue >> 8);
+		unsigned char chksum2 = (checkSumValue & 0xFF);
+
+		//check for fake loss of an ack
+		if (packetNumInt == MAX_SEQ_NUM_RANGE + 1) {
+			shouldLoseAck = true;
+		}
+		else {
+			shouldLoseAck = false;
+		}
+		
+		if (packetNumInt == sequenceNumber_s || shouldLoseAck) {
+			//checksum is good
+			if (chksum1 == *(packetBuffer + packetBufferIndex - 2) && chksum2 == *(packetBuffer + packetBufferIndex - 1)) {
+				cout << "Checksum for Packet " << packetNumInt << " was OK" << endl;
+
+				/**** WRITING ****/
+				bytes_s = 0;
+
+				if (packetNum != lastPacketNum) {
+					lastPacketNum = packetNum;
+					bytesReceived += packetBytes;
+					//append to the file
+					myfile << packet_s;
+				}
+
+				//send ack over to client with packet number
+				unsigned char* ackMsg = &packetNum;
+
+				if (shouldLoseAck) {
+					cout << "Losing ACK..." << endl;
+					sequenceNumber_s++;
+					sequenceNumber_s %= seqNumRange;
+					totalBytes_s += packetBytes;
+					bytesDuplicate += packetBytes;
+				}
+				else {
+					if (!write(sockfd, ackMsg, sizeof(packetNum))) {
+						cout << "2. ERROR writing to socket: " << sockfd << endl;
+						break;
+					}
+					else {
+						cout << "Ack " << packetNumInt << " sent" << endl;
+						sequenceNumber_s++;
+						sequenceNumber_s %= seqNumRange;
+
+						totalBytes_s += packetBytes;
+					}
+				}
+			}
+			else {
+				bytesDuplicate += packetBytes;
+				cout << "Checksum for Packet " << packetNumInt << " has failed" << endl;
+			}
+		}
+		else {
+			bytesDuplicate += packetBytes;
+			cout << "Unexpected Sequence number: " << packetNumInt << ".   Not sending ACK" << endl;
+		}
+
+
+		//printout of payload after taking out any DLE's
+		//printPayload(adjustedPayloadSize, packet2);
+
+		//print out value of payload with * to represent our special characters and NUL
+		//printPayloadReplace(adjustedPayloadSize, packet2);
+	}	
+	
+	myfile.close();
 }

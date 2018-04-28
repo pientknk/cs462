@@ -181,43 +181,49 @@ int writePacket(vector<int> acksToLose, vector<int> packetsToDamage, vector<int>
 
 void client(int portNum, int packetSize, int seqNumberRange, string fileName, int protocol, int slidingWindowSize, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout)
 {
-	if (protocol == Protocol::SW) {
-		clientStopAndWait(portNum, packetSize, seqNumberRange, fileName, acksToLose, packetsToDamage, packetsToDrop, intervalTimeout);
-	}
-	else if (protocol == Protocol::GBN) {
-		//clientGBN(portNum, packetSize, seq);
-	}
-	//selective repeat
-	else {
-
-	}
-}
-
-//send over 255 (max user allowed is 254) as seq num so the server know's that it should "lose the ack"
-void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string fileName, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout) {
 	socket_ = callServer("thing3.cs.uwec.edu", portNum);
-
+	
 	struct timeval sockTimeout;
 	sockTimeout.tv_sec = 0;
 	sockTimeout.tv_usec = intervalTimeout;
 	setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &sockTimeout, sizeof(struct timeval));
-
+	
 	//get file data and setup packet
 	totalBytes_c = GetFileSize(fileName);
 	payload = ParseFile(fileName, totalBytes_c);
-
-	unsigned long maxPackets = ceil((double)totalBytes_c / (double)packetSize);
-
-	//Time variables
-	time_t startTime = timer.GetTimeInSeconds();
-	time_t startTimeUSecs = timer.GetCurrentTimeInMicroSeconds();
-	double duration = 0.0;
-
+	
 	//Send over Packet Sequence Number Range information
 	int* packetSizePointer = &seqNumberRange;
 	if (!write(socket_, packetSizePointer, sizeof(int))) {
 		cout << "1. ERROR reading from socket: " << socket_ << endl;
 	}
+	
+	if (protocol == Protocol::SW) {
+		char* protocolInfo = "SW";
+		if (!write(socket_, protocolInfo, sizeof(protocolInfo))) {
+			cout << "1. ERROR reading from socket: " << socket_ << endl;
+		}
+		clientStopAndWait(portNum, packetSize, seqNumberRange, fileName, acksToLose, packetsToDamage, packetsToDrop, intervalTimeout);
+	}
+	else{
+		if (protocol == Protocol::GBN) {
+			//clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout);
+		}
+		//selective repeat
+		else {
+	
+		}
+	}
+	
+	close(socket_);
+}
+
+//send over 255 (max user allowed is 254) as seq num so the server know's that it should "lose the ack"
+void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string fileName, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout) {
+	unsigned long maxPackets = ceil((double)totalBytes_c / (double)packetSize);
+
+	//Time variables
+	time_t startTimeUSecs = timer.GetCurrentTimeInMicroSeconds();
 
 	while (totalBytes_c) {
 		currentPacketSize = packetSize;
@@ -247,7 +253,7 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 		bytes_c = read(socket_, ackBuffer, sizeof(ack));
 
 		if (bytes_c <= 0) {
-			cout << "timer - sendtime: " << timer.GetCurrentTimeInMicroSeconds() - sendTime << " >= " << intervalTimeout << endl;
+			//cout << "timer - sendtime: " << timer.GetCurrentTimeInMicroSeconds() - sendTime << " >= " << intervalTimeout << endl;
 			if (numAcksReceived < maxPackets) {
 				cout << "Packet " << sequenceNumber_c << " **** Timed Out *****" << endl;
 				cout << "Packet " << sequenceNumber_c << " Re-transmitted" << endl;
@@ -297,6 +303,113 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 
 	//print stats
 	printClientStats(bytesWritten, bytesResent, numPacketsSent, throughput, Uduration, systemMD5);
+}
 
-	close(socket_);
+void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout, int sws) {
+	int sendingWindowSize = sws;
+	int lastAckReceived = -1;
+	int lastFrameSent = -1;
+	int expectedPacketNum = -1;
+	unsigned long maxPackets = ceil((double)totalBytes_c / (double)packetSize);
+	numPacketsSent = 0;
+	int windowCapacity = 0;
+	size_t* st;
+
+	//Time variables
+	time_t startTimeUSecs = timer.GetCurrentTimeInMicroSeconds();
+
+	while (totalBytes_c) {
+		currentPacketSize = packetSize;
+		if (totalBytes_c < packetSize) {
+			currentPacketSize = totalBytes_c;
+		}
+
+		/**** WRITING ****/
+		sendTime = timer.GetCurrentTimeInMicroSeconds();
+		while(windowCapacity < sendingWindowSize && numPacketsSent < maxPackets){
+			extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop);
+			bytes_c = currentPacketSize;
+
+			if (extraBytes <= 0)
+			{
+				cout << "1. ERROR writing to socket: " << socket_ << endl;
+				break;
+			}
+			else {
+				bytesSent = bytes_c;
+				lastFrameSent = sequenceNumber_c;
+				windowCapacity++;
+				numPacketsSent++;
+
+				cout << "Packet " << sequenceNumber_c << " sent" << endl;
+				sequenceNumber_c++;
+			}
+		}
+
+		/**** READING ****/
+		bytes_c = 0;
+		while(lastAckReceived != expectedPacketNum) {
+			bytes_c = read(socket_, ackBuffer, sizeof(ack));
+
+			if (bytes_c <= 0) {
+				//cout << "timer - sendtime: " << timer.GetCurrentTimeInMicroSeconds() - sendTime << " >= " << intervalTimeout << endl;
+				if (numAcksReceived < maxPackets) {
+					cout << "Packet " << sequenceNumber_c << " **** Timed Out *****" << endl;
+					cout << "Packet " << sequenceNumber_c << " Re-transmitted" << endl;
+					bytesResent += extraBytes;
+				}
+				else {
+					break;
+				}
+			}
+			else {
+				if(expectedPacketNum == (*ackBuffer - '0')) {
+					//Get updated time
+					time_t readTime = timer.GetCurrentTimeInMicroSeconds();
+					time_t rtt = readTime - sendTime;
+
+					currentIndex += currentPacketSize;
+
+					if (bytes_c > 0) {
+						totalBytes_c -= bytesSent;
+					}
+
+					cout << "Ack " << ackBuffer << " received. (RTT for pkt " << sequenceNumber_c << " = " << 	rtt << "us)" << endl;
+
+					bytesSent = extraBytes;
+					bytesWritten += bytesSent;
+					
+					sequenceNumber_c++;
+					sequenceNumber_c %= seqNumberRange;
+					
+					lastAckReceived = expectedPacketNum;
+					numAcksReceived++;
+					
+					windowCapacity--;
+				}
+				else {
+					cout << "Unexpected Ack: " << "Ack " << (*ackBuffer - '0') << " instead of Ack "<< expectedPacketNum << endl;
+				}
+			}
+		}
+	}
+
+	if (totalBytes_c == 0) {
+		cout << "Session successfully terminated" << endl;
+	}
+	else if (totalBytes_c < 0) {
+		cout << "Session terminated with negative number of remaining bytes" << endl;
+	}
+	else {
+		cout << "Session terminated early" << endl;
+	}
+
+	// get updated time
+	double Uduration = (timer.GetCurrentTimeInMicroSeconds() - startTimeUSecs);
+	double throughput = ((double)bytesWritten / (double)Uduration);
+
+	const char* systemMD5 = ("md5sum " + fileName).c_str();
+
+	//print stats
+	printClientStats(bytesWritten, bytesResent, numPacketsSent, throughput, Uduration, systemMD5);
 }
