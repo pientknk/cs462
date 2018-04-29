@@ -29,11 +29,11 @@ int main(int argc, char **argv) {
 				string preset = GetPresets();
 
 				if (preset == "SW") {
-					clientStopAndWait(portNum, 256, 2, "test.txt", acksToLose, packetsToDamage, packetsToDrop, 1000);
+					client(portNum, 256, 2, "test.txt", Protocol::SW, -1, acksToLose, packetsToDamage, packetsToDrop, 1000);
 				}
 				else if (preset == "GBN") {
 					cout << "Not configured";
-					//client(portNum, packetSizeInBytes, seqNumberRange, fileName, protocol, slidingWindowSize, acksToLose, packetsToDamage, packetsToDrop, intervalTimeInMicroseconds);
+					client(portNum, 256, 2, "test.txt", Protocol::GBN, 8, acksToLose, packetsToDamage, packetsToDrop, 500000);
 				}
 				else if (preset == "SR") {
 					cout << "Not configured";
