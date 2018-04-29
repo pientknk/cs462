@@ -200,6 +200,44 @@ int GetSituationalErrorType() {
 	return errorType;
 }
 
+int GetRandomErrorGenerationType() {
+	hasValidInput = false;
+	input = "";
+	int randGenErrorType = RandErrorGenType::P;
+	while (!hasValidInput) {
+		cout << "Please select a Random Error Generation Type. 0 for Percent, or 1 for Amount." << endl;
+		cin >> input;
+		if (input == RandErrorGenTypes[RandErrorGenType::P] || input == RandErrorGenTypes[RandErrorGenType::A]) {
+			randGenErrorType = stoi(input, st, 10);
+			hasValidInput = true;
+		}
+		else {
+			cout << "\nERROR: You must select a Random Error Generation Type 0, or 1" << endl;
+		}
+	}
+
+	return randGenErrorType;
+}
+
+int GetNumberOfRandomlyGeneratedErrors(int maxNumberOfPackets) {
+	hasValidInput = false;
+	input = "";
+	int numGeneratedErrors = 0;
+	while (!hasValidInput) {
+		cout << "Please enter the number of randomly generated errors (must be less than or equal to " << maxNumberOfPackets << ")" << endl;
+		cin >> input;
+		numGeneratedErrors = strtol(input.c_str(), &charPtr, 10);
+		if (numGeneratedErrors > 0 || numGeneratedErrors <= maxNumberOfPackets) {
+			hasValidInput = true;
+		}
+		else {
+			cout << "\nERROR: You must enter a valid number that is between 1-" << maxNumberOfPackets << endl;
+		}
+	}
+
+	return numGeneratedErrors;
+}
+
 int GetErrorControlType() {
 	hasValidInput = false;
 	input = "";

@@ -1,6 +1,7 @@
 #include "server.h"
 #include "client.h"
 #include "userinput.h"
+#include "pseudorandomgen.h"
 
 //TO RUN SERVER: ./packet 9036 -s
 //TO RUN CLIENT: ./packet 9036 -c
@@ -56,7 +57,31 @@ int main(int argc, char **argv) {
 						intervalTimeInMicroseconds = GetTimeOutFromUser();
 					}
 					else { //ping calculated
-						   //use ping to pick a good timeout? or pass in -1 so that the client know that it needs to figure it out
+						intervalTimeInMicroseconds = -1;
+						string pingCommand = "ping thing3.cs.uwec.edu -s ";
+						pingCommand += to_string(packetSizeInBytes);
+						pingCommand += " -c 3";
+						string commandOutput = executeCommand(pingCommand);
+
+						//locate and extract the avg RRT given by the ping command's output
+						size_t timesPos = commandOutput.find("= ");
+						timesPos += 2;
+						size_t endTimesPos = commandOutput.find(" ms", timesPos);
+						string times = commandOutput.substr(timesPos, endTimesPos - timesPos);
+						string chunk;
+						vector<string> timesVector;
+						stringstream stream(times);
+						while (getline(stream, chunk, '/')) {
+							timesVector.push_back(chunk);
+						}
+
+						size_t sz;
+
+						//update the value retrieved to give a timeout
+						double convertedAvgTimeout = stod(timesVector.at(1), &sz);
+						intervalTimeInMicroseconds = (int)(convertedAvgTimeout * 15000); //convert it from ms to us
+						cout << "Ping Calculated Timeout: " << intervalTimeInMicroseconds << "us" << endl;
+						//cout << "Command Output: " << commandOutput << endl;
 					}
 
 					seqNumberRange = GetSequenceNumberRange(maxPackets);
@@ -84,8 +109,55 @@ int main(int argc, char **argv) {
 							GetMultipleErrorsFromUser(maxPackets, packetsToDrop, packetsToDamage, acksToLose);
 						}
 					}
+					else if(situationalErrorType == SitError::RG){
+						int randErrorGenType = GetRandomErrorGenerationType();
+						if (randErrorGenType == RandErrorGenType::A) {
+							int numGeneratedErrors = GetNumberOfRandomlyGeneratedErrors(maxPackets);
+							vector<long> randoms;
+							setRandoms(seqNumberRange, numGeneratedErrors, randoms);
 
-					/*cout << "Acks to lose: ";
+							//split up errors between the 3 types somewhat evenly
+							int split = numGeneratedErrors / 3;
+							int secondSplit = split * 2;
+							for (int i = 0; i < numGeneratedErrors; i++) {
+								if (i < split) {
+									packetsToDrop.push_back(randoms.at(i));
+								}
+								else if (i <= secondSplit) {
+									packetsToDamage.push_back(randoms.at(i));
+								}
+								else {
+									acksToLose.push_back(randoms.at(i));
+								}
+							}
+						}
+						else {
+							for (int i = 0; i < maxPackets; i++) {
+								int randomChance = getARandom(100);
+								//cout << "Chance to drop a packet: " << randomChance << endl;
+								//random chance to add to packetsToDrop
+								if (randomChance < getARandom(50)) {
+									packetsToDrop.push_back(getARandom(seqNumberRange));
+								}
+
+								randomChance = getARandom(100);
+								//cout << "Chance to damage a packet: " << randomChance << endl;
+								//random chance to add to packetsToDamage
+								if (randomChance < getARandom(50)) {
+									packetsToDamage.push_back(getARandom(seqNumberRange));
+								}
+
+								randomChance = getARandom(100);
+								//cout << "Chance to lose an ack: " << randomChance << endl;
+								//random chance to add to acksToLose
+								if (randomChance < getARandom(50)) {
+									acksToLose.push_back(getARandom(seqNumberRange));
+								}
+							}
+						}
+					}
+
+					cout << "Acks to lose: ";
 					for(int value : acksToLose)
 					{
 					cout << value << ", ";
@@ -104,7 +176,7 @@ int main(int argc, char **argv) {
 					{
 					cout << value << ", ";
 					}
-					cout << endl;*/
+					cout << endl;
 
 					client(portNum, packetSizeInBytes, seqNumberRange, fileName, protocol, slidingWindowSize, acksToLose, packetsToDamage, packetsToDrop, intervalTimeInMicroseconds);
 				}

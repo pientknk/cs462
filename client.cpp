@@ -25,6 +25,26 @@ int extraBytes = 0;
 bool sendWrongChecksums = false;
 int j;
 
+string executeCommand(string cmd) {
+	string data;
+	FILE * stream;
+	const int max_buffer = 256;
+	char buffer[max_buffer];
+	cmd.append(" 2>&1");
+
+	stream = popen(cmd.c_str(), "r");
+	if (stream) {
+		while (!feof(stream)) {
+			if (fgets(buffer, max_buffer, stream) != NULL) {
+				data.append(buffer);
+			}
+		}
+			
+		pclose(stream);
+	}
+	return data;
+}
+
 int callServer(string host, int portNum) {
 	const char* constHost = host.c_str();
 	//socket pointer
@@ -221,9 +241,14 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName, in
 	socket_ = callServer("thing3.cs.uwec.edu", portNum);
 	
 	struct timeval sockTimeout;
-	sockTimeout.tv_sec = 0;
+	sockTimeout.tv_sec = timer.MicroSecToSec(intervalTimeout);
 	sockTimeout.tv_usec = intervalTimeout;
 	setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &sockTimeout, sizeof(struct timeval));
+
+	if (intervalTimeout == -1) { //no user input so ping to get good interval timeout
+		//system("ping ");
+		intervalTimeout = 100000;
+	}
 	
 	//get file data and setup packet
 	totalBytes_c = GetFileSize(fileName);
@@ -255,7 +280,6 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName, in
 	close(socket_);
 }
 
-//send over 255 (max user allowed is 254) as seq num so the server know's that it should "lose the ack"
 void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string fileName, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout) {
 	unsigned long maxPackets = ceil((double)totalBytes_c / (double)packetSize);
 
