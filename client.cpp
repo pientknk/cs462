@@ -244,11 +244,6 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName, in
 	sockTimeout.tv_sec = timer.MicroSecToSec(intervalTimeout);
 	sockTimeout.tv_usec = intervalTimeout;
 	setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *) &sockTimeout, sizeof(struct timeval));
-
-	if (intervalTimeout == -1) { //no user input so ping to get good interval timeout
-		//system("ping ");
-		intervalTimeout = 100000;
-	}
 	
 	//get file data and setup packet
 	totalBytes_c = GetFileSize(fileName);
@@ -515,7 +510,12 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 				break;
 			}
 			else {
-				if(expectedPacketNum == (*ackBuffer - '0')) {
+				cout << bytes_c << endl;
+				unsigned char ackChar = *(ackBuffer + 0);
+				int ackValue = (ackChar - '0');
+				cout << "Ack Buffer: " << ackChar << endl;
+				
+				if(ackValue >= lastAckReceived && ackValue <= lastFrameSent) {
 					windowContents.pop_front();
 					//Get updated time
 					time_t readTime = timer.GetCurrentTimeInMicroSeconds();
@@ -528,7 +528,7 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 						bytesSent = 0;
 					}
 
-					cout << "Ack " << ackBuffer << " received. (RTT for pkt " << sequenceNumber_c << " = " << 	rtt << "us)" << endl;
+					cout << "Ack " << ackValue << " received. (RTT for pkt " << sequenceNumber_c << " = " << 	rtt << "us)" << endl;
 
 					bytesSent = extraBytes;
 					bytesWritten += bytesSent;
@@ -541,7 +541,7 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 					windowCapacity--;
 				}
 				else {
-					cout << "Unexpected Ack: " << "Ack " << (*ackBuffer - '0') << " instead of Ack "<< expectedPacketNum << endl;
+					cout << "Unexpected Ack: " << "Ack " << ackValue << " instead of Ack "<< expectedPacketNum << endl;
 					didReceiveLastAck = false;
 				}
 			}
