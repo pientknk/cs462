@@ -22,6 +22,11 @@ int bytesDuplicate = 0;
 bool foundEndOfPacket;
 bool isDone;
 int adjustedPayloadSize = 0;
+int receivingWindowSize;
+int largestAcceptableFrame;
+int lastFrameReceived = -1;
+int currentPacketNum = -1;
+int expectedPacketNum = -1;
 
 //Error introduction variables
 bool failToSendAcks = false;
@@ -331,12 +336,165 @@ void server(int portNum)
 	myfile.close();
 	}
 	else{
-		if (protocol == "GBN") {
-			//serverGBN(seqNumRange);
+		if (protocol == "GBN") {	
+			receivingWindowSize = 1;
+			largestAcceptableFrame = receivingWindowSize - 1;
+			lastFrameReceived = -1;
+			currentPacketNum = -1;
+			expectedPacketNum = -1;
+			unsigned char* ackMsg;
+	
+			ofstream myfile;
+			myfile.open("Output.txt");
+			
+			isDone = false;
+			
+			while (!isDone) {
+				cout << "IsNotDone" << endl;
+				/**** READING ****/
+				cout << "Expected seq#: " << sequenceNumber_s << endl;
+				foundEndOfPacket = false;
+				packetBufferIndex = 0;
+				packetBytes = 0;
+				packetNum = 'Z';
+
+				//readPacket();
+				while (!foundEndOfPacket) {
+					cout << "Reading" << endl;
+					/* if() {
+						break;
+					} */
+					bytes_s = read(sockfd, packetBuffer + packetBufferIndex, 1); //if slow, read in as much as we can and loop through the buffer to see if there is an ETX
+					if (bytes_s <= 0) {
+						//cout << "1. ERROR reading from socket: " << sockfd << endl;
+						isDone = true;
+						
+						cout << "bytes_s: " << bytes_s << endl;
+						cout << "error: " << strerror(errno) << endl;
+						break;
+					}
+					else {
+						packetBytes += bytes_s;
+
+						//get current char to check if this is the end of the packet
+						unsigned char currentChar = *(packetBuffer + packetBufferIndex);
+						if (currentChar == ETX && *(packetBuffer + packetBufferIndex - 1) != DLE) {
+							foundEndOfPacket = true;
+
+							//read in the checksum
+							bytes_s = read(sockfd, packetBuffer + packetBufferIndex + 1, 2);
+							packetBytes += bytes_s;
+							packetBufferIndex += bytes_s;
+						}
+
+						packetBufferIndex++;
+						if (packetBytes == 2) {
+							packetNum = currentChar;
+						}
+					}
+				}
+				
+				if (isDone) {
+					break;
+				}
+
+				//printPacketReplace(packetBytes, packetBuffer);
+				
+				packetNumInt = packetNum - '0';
+
+				if(lastFrameReceived < packetNumInt && packetNumInt <= largestAcceptableFrame) {
+				generatePacket();
+
+				/*string contents = "";
+
+				for (int i = 0; i < adjustedPayloadSize; i++) {
+					unsigned char character = *(packet2 + i);
+					contents += character;
+				}
+
+				ofstream afile;
+				afile.open("ServerOutput.txt");
+				afile << contents;
+				afile.close();
+				cout << "Wrote file ServerOutput.txt" << endl;*/
+
+				cout << "Packet " << packetNumInt << " received" << endl;
+				numPacketsReceived++;
+
+				uint16_t checkSumValue = gen_crc16(packet2, adjustedPayloadSize);
+				//printCheckSum(checkSumValue);
+				//printCheckSumIndividual(checkSumValue);
+				//cout << "Read in checksum: " << (char)*(packetBuffer + packetBufferIndex - 2) << " and " << (char)*(packetBuffer + packetBufferIndex - 1) << endl;
+
+				unsigned char chksum1 = (checkSumValue >> 8);
+				unsigned char chksum2 = (checkSumValue & 0xFF);
+
+				//check for fake loss of an ack
+				if (packetNumInt == -1) {
+					shouldLoseAck = true;
+				}
+				else {
+					shouldLoseAck = false;
+				}
+				
+				if (packetNumInt == sequenceNumber_s || shouldLoseAck) {
+					if (shouldLoseAck) {
+						cout << "***** Losing ACK... ****" << endl;
+						totalBytes_s += packetBytes;
+						bytesDuplicate += packetBytes;
+					}
+					//checksum is good
+					else if (chksum1 == *(packetBuffer + packetBufferIndex - 2) && chksum2 == *(packetBuffer + packetBufferIndex - 1)) {
+						cout << "Checksum for Packet " << packetNumInt << " was OK" << endl;
+
+						/**** WRITING ****/
+						bytes_s = 0;
+
+						if (packetNum != lastPacketNum) {
+							lastPacketNum = packetNum;
+							bytesReceived += packetBytes;
+							lastFrameReceived = packetNumInt;
+							//append to the file
+							myfile << packet_s;
+						}
+
+						//send ack over to client with packet number
+						ackMsg = &packetNum;
+						
+						/* if (!write(sockfd, ackMsg, sizeof(packetNum))) {
+							cout << "2. ERROR writing to socket: " << sockfd << endl;
+						}
+						else {
+							cout << "Ack " << packetNumInt << " sent" << endl;
+						} */
+						
+						sequenceNumber_s++;
+						//largestAcceptableFrame += num;
+						totalBytes_s += packetBytes;
+					}
+					else {
+						bytesDuplicate += packetBytes;
+						cout << "Checksum for Packet " << packetNumInt << " has failed" << endl;
+					}
+				}
+				else {
+					bytesDuplicate += packetBytes;
+					cout << "Unexpected Sequence number: " << packetNumInt << ".   Not sending ACK" << endl;
+				}
+
+					//printout of payload after taking out any DLE's
+					//printPayload(adjustedPayloadSize, packet2);
+
+					//print out value of payload with * to represent our special characters and NUL
+					//printPayloadReplace(adjustedPayloadSize, packet2);
+				}	
+			}
+			
+			myfile.close();
 		}
 		//selective repeat
 		else {
-	
+			cout << "Selective repeat" << endl;
 		}
 	}
 

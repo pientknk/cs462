@@ -244,6 +244,10 @@ void client(int portNum, int packetSize, int seqNumberRange, string fileName, in
 	}
 	else{
 		if (protocol == Protocol::GBN) {
+			char* protocolInfo = "GBN";
+			if (!write(socket_, protocolInfo, sizeof(protocolInfo))) {
+			cout << "1. ERROR reading from socket: " << socket_ << endl;
+		}
 			clientGBN(portNum, packetSize, seqNumberRange, fileName, acksToLose, packetsToDamage, packetsToDrop, intervalTimeout, slidingWindowSize);
 		}
 		//selective repeat
@@ -387,12 +391,13 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 	int lastAckReceived = -1;
 	bool didReceiveLastAck = true;
 	int lastFrameSent = -1;
-	int expectedPacketNum = -1;
+	int expectedPacketNum = 0;
 	unsigned long maxPackets = ceil((double)totalBytes_c / (double)packetSize);
 	numPacketsSent = 0;
 	int windowCapacity = 0;
 	size_t* st;
 	deque<unsigned char*> windowContents;
+	bool noMorePackets = false;
 
 	//Time variables
 	time_t startTimeUSecs = timer.GetCurrentTimeInMicroSeconds();
@@ -402,15 +407,39 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 		if (totalBytes_c < packetSize) {
 			currentPacketSize = totalBytes_c;
 		}
-
+		
 		/**** WRITING ****/
 		sendTime = timer.GetCurrentTimeInMicroSeconds();
-		if(!didReceiveLastAck){
-			if(!windowContents.empty()){
-				deque<unsigned char*>::iterator it = windowContents.begin();
-				while(it != windowContents.end()){
-					it++;
-					extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, &windowContents, *it);
+		
+		while(lastFrameSent - lastAckReceived < sendingWindowSize) {
+			if(!didReceiveLastAck){
+				if(!windowContents.empty()){
+					deque<unsigned char*>::iterator it = windowContents.begin();
+					while(it != windowContents.end()){
+						it++;
+						extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, &windowContents, *it);
+						bytes_c = currentPacketSize;
+
+						if (extraBytes <= 0)
+						{
+							cout << "1. ERROR writing to socket: " << socket_ << endl;
+							break;
+						}
+						else {
+							bytesSent += extraBytes;
+							lastFrameSent = sequenceNumber_c;
+							windowCapacity++;
+							numPacketsSent++;
+
+							cout << "Packet " << sequenceNumber_c << " sent" << endl;
+							sequenceNumber_c++;
+						}
+					}
+				}
+			}
+			else{
+				while(windowCapacity < sendingWindowSize && numPacketsSent < maxPackets){				
+					extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, &windowContents, NULL);
 					bytes_c = currentPacketSize;
 
 					if (extraBytes <= 0)
@@ -419,39 +448,29 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 						break;
 					}
 					else {
-						bytesSent = bytes_c;
+						bytesSent += extraBytes;
 						lastFrameSent = sequenceNumber_c;
 						windowCapacity++;
 						numPacketsSent++;
 
 						cout << "Packet " << sequenceNumber_c << " sent" << endl;
-						sequenceNumber_c++;
+						if(numPacketsSent < maxPackets) {
+							sequenceNumber_c++;
+						}
 					}
 				}
-			}
-		}
-		else{
-			while(windowCapacity < sendingWindowSize && numPacketsSent < maxPackets){
-				extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, &windowContents, NULL);
-				bytes_c = currentPacketSize;
-
-				if (extraBytes <= 0)
-				{
-					cout << "1. ERROR writing to socket: " << socket_ << endl;
-					break;
-				}
-				else {
-					bytesSent = bytes_c;
-					lastFrameSent = sequenceNumber_c;
-					windowCapacity++;
-					numPacketsSent++;
-
-					cout << "Packet " << sequenceNumber_c << " sent" << endl;
-					sequenceNumber_c++;
+				
+				if(numPacketsSent == maxPackets) {
+					noMorePackets = true;
 				}
 			}
+			
+			if(noMorePackets) {
+				cout << "BytesSent: " << bytesSent << endl;
+				cout << totalBytes_c << endl;
+				break;
+			}
 		}
-		
 
 		/**** READING ****/
 		bytes_c = 0;
@@ -467,8 +486,9 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 				}
 				else {
 					didReceiveLastAck = false;
-					break;
 				}
+				
+				break;
 			}
 			else {
 				if(expectedPacketNum == (*ackBuffer - '0')) {
@@ -481,6 +501,7 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 
 					if (bytes_c > 0) {
 						totalBytes_c -= bytesSent;
+						bytesSent = 0;
 					}
 
 					cout << "Ack " << ackBuffer << " received. (RTT for pkt " << sequenceNumber_c << " = " << 	rtt << "us)" << endl;
@@ -489,7 +510,6 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 					bytesWritten += bytesSent;
 					
 					sequenceNumber_c++;
-					sequenceNumber_c %= seqNumberRange;
 					
 					lastAckReceived = expectedPacketNum;
 					numAcksReceived++;
