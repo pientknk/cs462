@@ -21,6 +21,16 @@ typedef struct Timer {
 		gettimeofday(&time, NULL);
 		return time.tv_sec * 1000000 + time.tv_usec;
 	}
+
+	int MicroSecToSec(int &microseconds) {
+		int seconds = 0;
+		while (microseconds >= 1000000) {
+			microseconds -= 1000000;
+			seconds++;
+		}
+
+		return seconds;
+	}
 } Timer;
 
 #endif

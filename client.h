@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <deque>
 
-#include "packet.cpp"
 #include "timer.cpp"
 #include "filehandler.h"
 #include "crc16Checksum.h"
@@ -21,6 +20,8 @@
 
 
 using namespace std;
+
+string executeCommand(string cmd);
 
 int callServer(string host, int portNum);
 

@@ -23,6 +23,9 @@ const string SitErrors[] = { "0", "1", "2" };
 enum ErrorControl { PL, PD, AL, ML }; //Packet Loss, Packet Damage, Ack Lost, Multiple
 const string ErrorControls[] = { "0", "1", "2", "3" };
 
+enum RandErrorGenType { P, A }; //percent, or Amount
+const string RandErrorGenTypes[] = { "0", "1" };
+
 string GetPresets();
 
 string GetFileName();
@@ -40,6 +43,10 @@ int GetTimeOutFromUser();
 int GetSlidingWindowSize(int maxPackets);
 
 int GetSituationalErrorType();
+
+int GetRandomErrorGenerationType();
+
+int GetNumberOfRandomlyGeneratedErrors(int maxNumberOfPackets);
 
 int GetErrorControlType();
 
