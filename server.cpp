@@ -22,7 +22,7 @@ int bytesReceived = 0;
 int bytesDuplicate = 0;
 bool foundEndOfPacket;
 bool isDone;
-int adjustedPayloadSize = 0;
+int adjustedPayloadSize_s = 0;
 int receivingWindowSize;
 int largestAcceptableFrame;
 int lastFrameReceived = -1;
@@ -120,23 +120,23 @@ void readPacket() {
 void generatePacket() {
 	//get accurate payload size after checking for DLE's
 	payloadSize = packetBytes - PACKET_FRAME_SIZE;
-	adjustedPayloadSize = 0;
+	adjustedPayloadSize_s = 0;
 	for (int i = 3; i < payloadSize + 3; i++) {
 		unsigned char packetChar = *(packetBuffer + i);
 		if (packetChar == DLE) {
 			packetChar = *(packetBuffer + i + 1);
 			if (packetChar == DLE) {
-				adjustedPayloadSize++;
+				adjustedPayloadSize_s++;
 			}
 		}
 		else {
-			adjustedPayloadSize++;
+			adjustedPayloadSize_s++;
 		}
 	}
 
 	//create string from buffer somehow
 	packet_s = "";
-	packet2 = new unsigned char[adjustedPayloadSize];
+	packet2 = new unsigned char[adjustedPayloadSize_s];
 	int packet2Index = 0;
 	for (int i = 3; i < payloadSize + 3; i++) {
 		unsigned char packetChar = *(packetBuffer + i);
@@ -154,7 +154,7 @@ void generatePacket() {
 		}
 	}
 
-	//cout << "Packet size: " << adjustedPayloadSize << endl;
+	//cout << "Packet size: " << adjustedPayloadSize_s << endl;
 }
 
 void server(int portNum)
@@ -203,7 +203,6 @@ void server(int portNum)
 	isDone = false;
 	while (!isDone) {
 		/**** READING ****/
-		cout << "Expected seq#: " << sequenceNumber_s << endl;
 		foundEndOfPacket = false;
 		packetBufferIndex = 0;
 		packetBytes = 0;
@@ -250,7 +249,7 @@ void server(int portNum)
 
 		/*string contents = "";
 
-		for (int i = 0; i < adjustedPayloadSize; i++) {
+		for (int i = 0; i < adjustedPayloadSize_s; i++) {
 			unsigned char character = *(packet2 + i);
 			contents += character;
 		}
@@ -262,11 +261,11 @@ void server(int portNum)
 		cout << "Wrote file ServerOutput.txt" << endl;*/
 
 		packetNumInt = packetNum - '0';
-
+		cout << "Expected seq#: " << sequenceNumber_s << endl;
 		cout << "Packet " << packetNumInt << " received" << endl;
 		numPacketsReceived++;
 
-		uint16_t checkSumValue = gen_crc16(packet2, adjustedPayloadSize);
+		uint16_t checkSumValue = gen_crc16(packet2, adjustedPayloadSize_s);
 		//printCheckSum(checkSumValue);
 		//printCheckSumIndividual(checkSumValue);
 		//cout << "Read in checksum: " << (char)*(packetBuffer + packetBufferIndex - 2) << " and " << (char)*(packetBuffer + packetBufferIndex - 1) << endl;
@@ -328,10 +327,10 @@ void server(int portNum)
 
 
 		//printout of payload after taking out any DLE's
-		//printPayload(adjustedPayloadSize, packet2);
+		//printPayload(adjustedPayloadSize_s, packet2);
 
 		//print out value of payload with * to represent our special characters and NUL
-		//printPayloadReplace(adjustedPayloadSize, packet2);
+		//printPayloadReplace(adjustedPayloadSize_s, packet2);
 	}	
 	
 	myfile.close();
@@ -355,10 +354,11 @@ void server(int portNum)
 			myfile.open("Output.txt");
 			
 			isDone = false;
+			bool isSuperDone = false;
 			
 			while (!isDone) {
 				/**** READING ****/
-				//cout << "Expected seq#: " << sequenceNumber_s << endl;
+				cout << "Expected seq#: " << sequenceNumber_s << endl;
 				foundEndOfPacket = false;
 				packetBufferIndex = 0;
 				packetBytes = 0;
@@ -373,9 +373,6 @@ void server(int portNum)
 							//cout << "1. ERROR reading from socket: " << sockfd << endl;
 							
 							isDone = true;
-							
-							/* cout << "bytes_s: " << bytes_s << endl;
-							cout << "error: " << strerror(errno) << endl; */
 							break;
 						}
 						else {
@@ -398,14 +395,13 @@ void server(int portNum)
 							}
 						}
 					}
-					else if(pollResult == 0){
-						//cout << "Send acks" << endl;
+					else if(pollResult == 0 && !isSuperDone){
 						sendAcks = true;
 						foundEndOfPacket = true;
 					}
 					else {
 						isDone = true;
-						cout << "Poll error" << endl;
+						break;
 					}
 				}
 				
@@ -422,7 +418,7 @@ void server(int portNum)
 
 					/*string contents = "";
 
-					for (int i = 0; i < adjustedPayloadSize; i++) {
+					for (int i = 0; i < adjustedPayloadSize_s; i++) {
 						unsigned char character = *(packet2 + i);
 						contents += character;
 					}
@@ -436,7 +432,7 @@ void server(int portNum)
 					cout << "Packet " << packetNumInt << " received" << endl;
 					numPacketsReceived++;
 
-					uint16_t checkSumValue = gen_crc16(packet2, adjustedPayloadSize);
+					uint16_t checkSumValue = gen_crc16(packet2, adjustedPayloadSize_s);
 					//printCheckSum(checkSumValue);
 					//printCheckSumIndividual(checkSumValue);
 					//cout << "Read in checksum: " << (char)*(packetBuffer + packetBufferIndex - 2) << " and " << (char)*(packetBuffer + packetBufferIndex - 1) << endl;
@@ -468,11 +464,9 @@ void server(int portNum)
 								lastPacketNum = packetNum;
 								bytesReceived += packetBytes;
 								lastFrameReceived = packetNumInt;
-								cout << "Last Frame: " << lastFrameReceived << endl;
-								//append to the file
+								//append to the file	
 								myfile << packet_s;
 							}
-							cout << "Packet Num: " << packetNum << endl;
 							//send ack over to client with packet number
 							ackMsg = &packetNum;
 							
@@ -491,10 +485,10 @@ void server(int portNum)
 					}
 
 					//printout of payload after taking out any DLE's
-					//printPayload(adjustedPayloadSize, packet2);
+					//printPayload(adjustedPayloadSize_s, packet2);
 
 					//print out value of payload with * to represent our special characters and NUL
-					//printPayloadReplace(adjustedPayloadSize, packet2);
+					//printPayloadReplace(adjustedPayloadSize_s, packet2);
 				}	
 				
 				//cout << "sendAcks: " << sendAcks << endl;
@@ -507,6 +501,7 @@ void server(int portNum)
 					else {
 						cout << "Ack " << packetNumInt << " sent" << endl;
 						sendAcks = false;
+						isSuperDone = true;
 					}
 				}
 			}
@@ -582,7 +577,7 @@ void serverStopAndWait(int portNum, int ss, int seqNumRange) {
 
 		/*string contents = "";
 
-		for (int i = 0; i < adjustedPayloadSize; i++) {
+		for (int i = 0; i < adjustedPayloadSize_s; i++) {
 			unsigned char character = *(packet2 + i);
 			contents += character;
 		}
@@ -598,7 +593,7 @@ void serverStopAndWait(int portNum, int ss, int seqNumRange) {
 		cout << "Packet " << packetNumInt << " received" << endl;
 		numPacketsReceived++;
 
-		uint16_t checkSumValue = gen_crc16(packet2, adjustedPayloadSize);
+		uint16_t checkSumValue = gen_crc16(packet2, adjustedPayloadSize_s);
 		//printCheckSum(checkSumValue);
 		//printCheckSumIndividual(checkSumValue);
 		//cout << "Read in checksum: " << (char)*(packetBuffer + packetBufferIndex - 2) << " and " << (char)*(packetBuffer + packetBufferIndex - 1) << endl;
@@ -665,10 +660,10 @@ void serverStopAndWait(int portNum, int ss, int seqNumRange) {
 
 
 		//printout of payload after taking out any DLE's
-		//printPayload(adjustedPayloadSize, packet2);
+		//printPayload(adjustedPayloadSize_s, packet2);
 
 		//print out value of payload with * to represent our special characters and NUL
-		//printPayloadReplace(adjustedPayloadSize, packet2);
+		//printPayloadReplace(adjustedPayloadSize_s, packet2);
 	}	
 	
 	myfile.close();

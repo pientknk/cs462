@@ -20,6 +20,7 @@ Timer timer;
 time_t startWriteUSec;
 time_t sendTime;
 int extraBytes = 0;
+int adjustedPayloadSize_c = 0;
 
 //Error introduction variables
 bool sendWrongChecksums = false;
@@ -119,18 +120,18 @@ int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<in
 	//printCheckSum(value);
 
 	//packet vars
-	int adjustedPayloadSize = 0;
+	adjustedPayloadSize_c = 0;
 	for (int i = 0; i < currentPacketSize; i++) {
-		adjustedPayloadSize++;
+		adjustedPayloadSize_c++;
 		unsigned char currentPayloadChar = packetPayload[i];
 		if (currentPayloadChar == SOH || currentPayloadChar == STX || currentPayloadChar == ETX || currentPayloadChar == DLE) {
-			adjustedPayloadSize++;
+			adjustedPayloadSize_c++;
 		}
 	}
 
-	packet_c = new unsigned char[adjustedPayloadSize + PACKET_FRAME_SIZE];
+	packet_c = new unsigned char[adjustedPayloadSize_c + PACKET_FRAME_SIZE];
 	
-	//cout << "Size of packet: " << adjustedPayloadSize + PACKET_FRAME_SIZE << endl;
+	//cout << "Size of packet: " << adjustedPayloadSize_c + PACKET_FRAME_SIZE << endl;
 
 	unsigned char packetNum = '0' + sequenceNumber_c;
 	int packetIndex = 0;
@@ -229,12 +230,12 @@ int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<in
 	cout << endl;*/
 
 	//print off entire packet with * replacing
-	//printPacketReplace(adjustedPayloadSize + PACKET_FRAME_SIZE, packet_c);
+	//printPacketReplace(adjustedPayloadSize_c + PACKET_FRAME_SIZE, packet_c);
 
 	//get updated time
 	startWriteUSec = timer.GetCurrentTimeInMicroSeconds();
 	
-	return write(socket_, packet_c, adjustedPayloadSize + PACKET_FRAME_SIZE);
+	return write(socket_, packet_c, adjustedPayloadSize_c + PACKET_FRAME_SIZE);
 }
 
 void client(int portNum, int packetSize, int seqNumberRange, string fileName, int protocol, int slidingWindowSize, vector<int> acksToLose, vector<int> packetsToDamage, vector<int> packetsToDrop, int intervalTimeout) {
@@ -300,16 +301,16 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 				packetsToDrop.erase(it);
 				cout << "**** Dropping packet " << sequenceNumber_c << " *****" << endl;
 
-				int adjustedPayloadSize = 0;
+				int adjustedPayloadSize_c = 0;
 				for (int i = 0; i < currentPacketSize; i++) {
-					adjustedPayloadSize++;
+					adjustedPayloadSize_c++;
 					unsigned char currentPayloadChar = *(payload + currentIndex + i);
 					if (currentPayloadChar == SOH || currentPayloadChar == STX || currentPayloadChar == ETX || currentPayloadChar == DLE) {
-						adjustedPayloadSize++;
+						adjustedPayloadSize_c++;
 					}
 				}
 
-				extraBytes = adjustedPayloadSize + PACKET_FRAME_SIZE;
+				extraBytes = adjustedPayloadSize_c + PACKET_FRAME_SIZE;
 				bytes_c = currentPacketSize;
 				bytesSent = bytes_c;
 				numPacketsSent++;
@@ -417,11 +418,12 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 	size_t* st;
 	deque<unsigned char*> windowContents;
 	bool noMorePackets = false;
+	int tempTotalBytes = totalBytes_c;
 
 	//Time variables
 	time_t startTimeUSecs = timer.GetCurrentTimeInMicroSeconds();
 
-	while (totalBytes_c) {
+	while (totalBytes_c >= 0) {
 		currentPacketSize = packetSize;
 		if (totalBytes_c < packetSize) {
 			currentPacketSize = totalBytes_c;
@@ -435,8 +437,14 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 				if(!windowContents.empty()){
 					deque<unsigned char*>::iterator it = windowContents.begin();
 					while(it != windowContents.end()){
+						currentPacketSize = packetSize;
+						if (tempTotalBytes < packetSize) {
+							currentPacketSize = tempTotalBytes;
+						}
+		
 						it++;
 						extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, &windowContents, *it);
+						tempTotalBytes -= currentPacketSize;
 						bytes_c = currentPacketSize;
 
 						if (extraBytes <= 0)
@@ -445,8 +453,9 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 							break;
 						}
 						else {
-							bytesSent += extraBytes;
+							bytesSent += adjustedPayloadSize_c + PACKET_FRAME_SIZE;;
 							lastFrameSent = sequenceNumber_c;
+							expectedPacketNum = lastFrameSent;
 							windowCapacity++;
 							numPacketsSent++;
 
@@ -457,8 +466,16 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 				}
 			}
 			else{
-				while(windowCapacity < sendingWindowSize && numPacketsSent < maxPackets){				
+				while(windowCapacity < sendingWindowSize && numPacketsSent < maxPackets){
+					currentPacketSize = packetSize;
+					if (tempTotalBytes < packetSize) {
+						currentPacketSize = tempTotalBytes;
+					}
+		
 					extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, &windowContents, NULL);
+					tempTotalBytes -= currentPacketSize;
+					currentIndex += currentPacketSize;
+					
 					bytes_c = currentPacketSize;
 
 					if (extraBytes <= 0)
@@ -467,8 +484,9 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 						break;
 					}
 					else {
-						bytesSent += extraBytes;
+						bytesSent += adjustedPayloadSize_c + PACKET_FRAME_SIZE;
 						lastFrameSent = sequenceNumber_c;
+						expectedPacketNum = lastFrameSent;
 						windowCapacity++;
 						numPacketsSent++;
 
@@ -485,8 +503,6 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 			}
 			
 			if(noMorePackets) {
-				cout << "BytesSent: " << bytesSent << endl;
-				cout << totalBytes_c << endl;
 				break;
 			}
 		}
@@ -498,7 +514,7 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 
 			if (bytes_c <= 0) {
 				//cout << "timer - sendtime: " << timer.GetCurrentTimeInMicroSeconds() - sendTime << " >= " << intervalTimeout << endl;
-				if (numAcksReceived < maxPackets) {
+				if (lastAckReceived < maxPackets) {
 					cout << "Packet " << sequenceNumber_c << " **** Timed Out *****" << endl;
 					cout << "Packet " << sequenceNumber_c << " Re-transmitted" << endl;
 					bytesResent += extraBytes;
@@ -510,10 +526,8 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 				break;
 			}
 			else {
-				cout << bytes_c << endl;
 				unsigned char ackChar = *(ackBuffer + 0);
 				int ackValue = (ackChar - '0');
-				cout << "Ack Buffer: " << ackChar << endl;
 				
 				if(ackValue >= lastAckReceived && ackValue <= lastFrameSent) {
 					windowContents.pop_front();
@@ -525,17 +539,17 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 
 					if (bytes_c > 0) {
 						totalBytes_c -= bytesSent;
+						extraBytes = bytesSent;
 						bytesSent = 0;
 					}
 
 					cout << "Ack " << ackValue << " received. (RTT for pkt " << sequenceNumber_c << " = " << 	rtt << "us)" << endl;
 
-					bytesSent = extraBytes;
-					bytesWritten += bytesSent;
+					bytesWritten += extraBytes;
 					
 					sequenceNumber_c++;
 					
-					lastAckReceived = expectedPacketNum;
+					lastAckReceived = ackValue;
 					numAcksReceived++;
 					
 					windowCapacity--;
@@ -552,7 +566,8 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 		cout << "Session successfully terminated" << endl;
 	}
 	else if (totalBytes_c < 0) {
-		cout << "Session terminated with negative number of remaining bytes" << endl;
+		cout << "Session successfully terminated" << endl;
+		//cout << "Session terminated with negative number of remaining bytes" << endl;
 	}
 	else {
 		cout << "Session terminated early" << endl;
