@@ -437,6 +437,7 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 				if(!windowContents.empty()){
 					deque<unsigned char*>::iterator it = windowContents.begin();
 					while(it != windowContents.end()){
+						cout << "here 3" << endl;
 						currentPacketSize = packetSize;
 						if (tempTotalBytes < packetSize) {
 							currentPacketSize = tempTotalBytes;
@@ -466,7 +467,7 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 				}
 			}
 			else{
-				while(windowCapacity < sendingWindowSize && numPacketsSent < maxPackets){
+				while(windowCapacity < sendingWindowSize && numPacketsSent < maxPackets) {
 					currentPacketSize = packetSize;
 					if (tempTotalBytes < packetSize) {
 						currentPacketSize = tempTotalBytes;
@@ -509,57 +510,68 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 
 		/**** READING ****/
 		bytes_c = 0;
-		while(lastAckReceived != expectedPacketNum) {
-			bytes_c = read(socket_, ackBuffer, sizeof(ack));
+		bytes_c = read(socket_, ackBuffer, sizeof(ack));
 
-			if (bytes_c <= 0) {
-				//cout << "timer - sendtime: " << timer.GetCurrentTimeInMicroSeconds() - sendTime << " >= " << intervalTimeout << endl;
-				if (lastAckReceived < maxPackets) {
-					cout << "Packet " << sequenceNumber_c << " **** Timed Out *****" << endl;
-					cout << "Packet " << sequenceNumber_c << " Re-transmitted" << endl;
-					bytesResent += extraBytes;
-				}
-				else {
-					didReceiveLastAck = false;
-				}
-				
-				break;
+		if (bytes_c <= 0) {
+			//cout << "timer - sendtime: " << timer.GetCurrentTimeInMicroSeconds() - sendTime << " >= " << intervalTimeout << endl;
+			if (lastAckReceived < maxPackets) {
+				cout << "Packet " << sequenceNumber_c << " **** Timed Out *****" << endl;
+				cout << "Packet " << sequenceNumber_c << " Re-transmitted" << endl;
+				bytesResent += extraBytes;
 			}
 			else {
-				unsigned char ackChar = *(ackBuffer + 0);
-				int ackValue = (ackChar - '0');
+				didReceiveLastAck = false;
+			}
+			
+			break;
+		}
+		else {
+			unsigned char ackChar = *(ackBuffer + 0);
+			int ackValue = (ackChar - '0');
+			
+			if(ackValue >= lastAckReceived && ackValue <= lastFrameSent) {
+				windowContents.pop_front();
+				//Get updated time
+				time_t readTime = timer.GetCurrentTimeInMicroSeconds();
+				time_t rtt = readTime - sendTime;
+
+				currentIndex += currentPacketSize;
+
+				if (bytes_c > 0) {
+					totalBytes_c -= bytesSent;
+					extraBytes = bytesSent;
+					bytesSent = 0;
+				}
+
+				cout << "Ack " << ackValue << " received. (RTT for pkt " << ackValue << " = " << 	rtt << "us)" << endl;
+
+				bytesWritten += extraBytes;
 				
-				if(ackValue >= lastAckReceived && ackValue <= lastFrameSent) {
-					windowContents.pop_front();
-					//Get updated time
-					time_t readTime = timer.GetCurrentTimeInMicroSeconds();
-					time_t rtt = readTime - sendTime;
-
-					currentIndex += currentPacketSize;
-
-					if (bytes_c > 0) {
-						totalBytes_c -= bytesSent;
-						extraBytes = bytesSent;
-						bytesSent = 0;
+				//sequenceNumber_c++;
+				
+				windowCapacity -= lastFrameSent - lastAckReceived;
+				
+				lastAckReceived = ackValue;
+				numAcksReceived++;
+				
+				cout << "Current window = [";
+				for(int i = 0; i < sendingWindowSize; i++) {
+					if(lastAckReceived + i + 1 < maxPackets) {
+						cout << lastAckReceived + i + 1;
+						
+						if(i != sendingWindowSize - 1 && (lastAckReceived + i + 1) < maxPackets - 1) {
+							cout << ", ";
+						}
 					}
-
-					cout << "Ack " << ackValue << " received. (RTT for pkt " << sequenceNumber_c << " = " << 	rtt << "us)" << endl;
-
-					bytesWritten += extraBytes;
-					
-					sequenceNumber_c++;
-					
-					lastAckReceived = ackValue;
-					numAcksReceived++;
-					
-					windowCapacity--;
 				}
-				else {
-					cout << "Unexpected Ack: " << "Ack " << ackValue << " instead of Ack "<< expectedPacketNum << endl;
-					didReceiveLastAck = false;
-				}
+				cout << "]" << endl;
+			}
+			else {
+				cout << "Unexpected Ack: " << "Ack " << ackValue << " instead of Ack "<< expectedPacketNum << endl;
+				//didReceiveLastAck = false;
 			}
 		}
+		
 	}
 
 	if (totalBytes_c == 0) {

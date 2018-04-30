@@ -358,7 +358,6 @@ void server(int portNum)
 			
 			while (!isDone) {
 				/**** READING ****/
-				cout << "Expected seq#: " << sequenceNumber_s << endl;
 				foundEndOfPacket = false;
 				packetBufferIndex = 0;
 				packetBytes = 0;
@@ -395,7 +394,7 @@ void server(int portNum)
 							}
 						}
 					}
-					else if(pollResult == 0 && !isSuperDone){
+					else if(pollResult == 0 /*&& !isSuperDone*/){
 						sendAcks = true;
 						foundEndOfPacket = true;
 					}
@@ -413,7 +412,7 @@ void server(int portNum)
 				
 				packetNumInt = packetNum - '0';
 
-				if(!sendAcks && lastFrameReceived < packetNumInt && packetNumInt <= largestAcceptableFrame) {
+				if(/* !sendAcks &&  */lastFrameReceived < packetNumInt && packetNumInt <= largestAcceptableFrame) {
 					generatePacket();
 
 					/*string contents = "";
@@ -429,6 +428,7 @@ void server(int portNum)
 					afile.close();
 					cout << "Wrote file ServerOutput.txt" << endl;*/
 
+					cout << "Expected seq#: " << sequenceNumber_s << endl;
 					cout << "Packet " << packetNumInt << " received" << endl;
 					numPacketsReceived++;
 
@@ -501,7 +501,9 @@ void server(int portNum)
 					else {
 						cout << "Ack " << packetNumInt << " sent" << endl;
 						sendAcks = false;
-						isSuperDone = true;
+						//isSuperDone = true;
+						
+						cout << "Current window = [" << packetNumInt + 1 << "]" << endl;
 					}
 				}
 			}
