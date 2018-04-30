@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
 					client(portNum, 256, 2, "test.txt", Protocol::SW, -1, acksToLose, packetsToDamage, packetsToDrop, 1000);
 				}
 				else if (preset == "GBN") {
-					client(portNum, 256, 2, "binbin", Protocol::GBN, 8, acksToLose, packetsToDamage, packetsToDrop, 500000);
+					client(portNum, 50000, 2, "longtest.txt", Protocol::GBN, 4, acksToLose, packetsToDamage, packetsToDrop, 500000);
 				}
 				else if (preset == "SR") {
 					cout << "Not configured";

@@ -154,6 +154,8 @@ void generatePacket() {
 		}
 	}
 
+	//printPacketReplace(adjustedPayloadSize_s, packet2);
+	
 	//cout << "Packet size: " << adjustedPayloadSize_s << endl;
 }
 
@@ -364,13 +366,11 @@ void server(int portNum)
 
 				//readPacket();
 				while (!foundEndOfPacket) {
-					int pollResult = poll(&pfd, 1, 1); 
+					int pollResult = poll(&pfd, 1, 100); 
 					if(pollResult > 0){
 						bytes_s = read(sockfd, packetBuffer + packetBufferIndex, 1); //if slow, read in as much as we can and loop through the buffer to see if there is an ETX
-					
 						if (bytes_s <= 0) {
 							//cout << "1. ERROR reading from socket: " << sockfd << endl;
-							
 							isDone = true;
 							break;
 						}
@@ -404,6 +404,8 @@ void server(int portNum)
 					}
 				}
 				
+				//cout << "packetBytes: " << packetBytes << endl;
+				
 				if (isDone) {
 					break;
 				}
@@ -412,7 +414,7 @@ void server(int portNum)
 				
 				packetNumInt = packetNum - '0';
 
-				if(/* !sendAcks &&  */lastFrameReceived < packetNumInt && packetNumInt <= largestAcceptableFrame) {
+				if(lastFrameReceived < packetNumInt && packetNumInt <= largestAcceptableFrame) {
 					generatePacket();
 
 					/*string contents = "";
@@ -478,10 +480,13 @@ void server(int portNum)
 							bytesDuplicate += packetBytes;
 							cout << "Checksum for Packet " << packetNumInt << " has failed" << endl;
 						}
+						
+						cout << "Current window = [" << packetNumInt + 1 << "]" << endl;
 					}
 					else {
 						bytesDuplicate += packetBytes;
 						cout << "Unexpected Sequence number: " << packetNumInt << ".   Not sending ACK" << endl;
+						cout << "Current window = [" << packetNumInt << "]" << endl;
 					}
 
 					//printout of payload after taking out any DLE's
@@ -495,15 +500,15 @@ void server(int portNum)
 				
 				/**** WRITING ****/
 				if(sendAcks) {
-					if (!write(sockfd, ackMsg, sizeof(ackMsg))) {
+					int bytes_w = write(sockfd, ackMsg, 1);
+					//cout << "bytes_w: " << bytes_w << endl;
+					if (!bytes_w) {
 						cout << "2. ERROR writing to socket: " << sockfd << endl;
 					}
 					else {
 						cout << "Ack " << packetNumInt << " sent" << endl;
 						sendAcks = false;
 						//isSuperDone = true;
-						
-						cout << "Current window = [" << packetNumInt + 1 << "]" << endl;
 					}
 				}
 			}

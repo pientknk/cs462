@@ -222,6 +222,8 @@ int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<in
 	if(windowContents != NULL){
 		(*windowContents).push_back(packetPayload);
 	}
+	
+	//cout << packetPayload << endl;
 
 	/*cout << "packets to damage after: " << endl;
 	for (int i = 0; i < packetsToDamage.size(); i++) {
@@ -437,7 +439,6 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 				if(!windowContents.empty()){
 					deque<unsigned char*>::iterator it = windowContents.begin();
 					while(it != windowContents.end()){
-						cout << "here 3" << endl;
 						currentPacketSize = packetSize;
 						if (tempTotalBytes < packetSize) {
 							currentPacketSize = tempTotalBytes;
@@ -445,6 +446,7 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 		
 						it++;
 						extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, &windowContents, *it);
+						//cout << "extraBytes: " << extraBytes << endl;
 						tempTotalBytes -= currentPacketSize;
 						bytes_c = currentPacketSize;
 
@@ -474,6 +476,7 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 					}
 		
 					extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, &windowContents, NULL);
+					//cout << "extraBytes: " << extraBytes << endl;
 					tempTotalBytes -= currentPacketSize;
 					currentIndex += currentPacketSize;
 					
@@ -511,6 +514,7 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 		/**** READING ****/
 		bytes_c = 0;
 		bytes_c = read(socket_, ackBuffer, sizeof(ack));
+		//cout << "bytes_c: " << bytes_c << endl;
 
 		if (bytes_c <= 0) {
 			//cout << "timer - sendtime: " << timer.GetCurrentTimeInMicroSeconds() - sendTime << " >= " << intervalTimeout << endl;
@@ -535,7 +539,7 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 				time_t readTime = timer.GetCurrentTimeInMicroSeconds();
 				time_t rtt = readTime - sendTime;
 
-				currentIndex += currentPacketSize;
+				//currentIndex += currentPacketSize;
 
 				if (bytes_c > 0) {
 					totalBytes_c -= bytesSent;
