@@ -49,7 +49,17 @@ void printPacketReplace(int packetBytes, unsigned char* packetBuffer) {
 	for (int i = 0; i < packetBytes; i++) {
 		char character = *(packetBuffer + i);
 		if (character == SOH || character == STX || character == ETX || character == DLE || character == NUL) {
-			cout << "*";
+			if(character == SOH){
+				cout << "(SOH)";
+			}else if(character == STX){
+				cout << "(STX)";
+			}else if(character == ETX){
+				cout << "(ETX)";
+			}else if(character == DLE){
+				cout << "(DLE)";
+			}else{
+				cout << "*";
+			}
 		}
 		else {
 			cout << character;

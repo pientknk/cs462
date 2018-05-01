@@ -127,6 +127,7 @@ void generatePacket() {
 			packetChar = *(packetBuffer + i + 1);
 			if (packetChar == DLE) {
 				adjustedPayloadSize_s++;
+				i++;
 			}
 		}
 		else {
@@ -156,7 +157,7 @@ void generatePacket() {
 
 	//printPacketReplace(adjustedPayloadSize_s, packet2);
 	
-	//cout << "Packet size: " << adjustedPayloadSize_s << endl;
+	//cout << "Packet size 2: " << adjustedPayloadSize_s << endl;
 }
 
 void server(int portNum)
@@ -226,13 +227,19 @@ void server(int portNum)
 
 				//get current char to check if this is the end of the packet
 				unsigned char currentChar = *(packetBuffer + packetBufferIndex);
-				if (currentChar == ETX && *(packetBuffer + packetBufferIndex - 1) != DLE) {
-					foundEndOfPacket = true;
+				if (currentChar == ETX) {
+					int z = 1;
+					while(*(packetBuffer + packetBufferIndex - z) == DLE) {
+						z++;
+					}
+					if(z % 2 == 1){
+						foundEndOfPacket = true;
 
-					//read in the checksum
-					bytes_s = read(sockfd, packetBuffer + packetBufferIndex + 1, 2);
-					packetBytes += bytes_s;
-					packetBufferIndex += bytes_s;
+						//read in the checksum
+						bytes_s = read(sockfd, packetBuffer + packetBufferIndex + 1, 2);
+						packetBytes += bytes_s;
+						packetBufferIndex += bytes_s;
+					}
 				}
 
 				packetBufferIndex++;
@@ -249,7 +256,7 @@ void server(int portNum)
 
 		generatePacket();
 
-		/*string contents = "";
+		/* string contents = "";
 
 		for (int i = 0; i < adjustedPayloadSize_s; i++) {
 			unsigned char character = *(packet2 + i);
@@ -260,7 +267,7 @@ void server(int portNum)
 		afile.open("ServerOutput.txt");
 		afile << contents;
 		afile.close();
-		cout << "Wrote file ServerOutput.txt" << endl;*/
+		cout << "Wrote file ServerOutput.txt" << endl; */
 
 		packetNumInt = packetNum - '0';
 		cout << "Expected seq#: " << sequenceNumber_s << endl;
@@ -329,7 +336,7 @@ void server(int portNum)
 
 
 		//printout of payload after taking out any DLE's
-		//printPayload(adjustedPayloadSize_s, packet2);
+		//printPacketReplace(packetBytes, packetBuffer);
 
 		//print out value of payload with * to represent our special characters and NUL
 		//printPayloadReplace(adjustedPayloadSize_s, packet2);
@@ -347,6 +354,7 @@ void server(int portNum)
 			packetNum = 'Z';
 			unsigned char* ackMsg;
 			bool sendAcks = false;
+			bool isDuplicate = true;
 			
 			struct pollfd pfd;
 			pfd.fd = sockfd;
@@ -379,13 +387,19 @@ void server(int portNum)
 
 							//get current char to check if this is the end of the packet
 							unsigned char currentChar = *(packetBuffer + packetBufferIndex);
-							if (currentChar == ETX && *(packetBuffer + packetBufferIndex - 1) != DLE) {
-								foundEndOfPacket = true;
+							if (currentChar == ETX) {
+								int z = 1;
+								while(*(packetBuffer + packetBufferIndex - z) == DLE) {
+									z++;
+								}
+								if(z % 2 == 1){
+									foundEndOfPacket = true;
 
-								//read in the checksum
-								bytes_s = read(sockfd, packetBuffer + packetBufferIndex + 1, 2);
-								packetBytes += bytes_s;
-								packetBufferIndex += bytes_s;
+									//read in the checksum
+									bytes_s = read(sockfd, packetBuffer + packetBufferIndex + 1, 2);
+									packetBytes += bytes_s;
+									packetBufferIndex += bytes_s;
+								}
 							}
 
 							packetBufferIndex++;
@@ -413,7 +427,6 @@ void server(int portNum)
 				//printPacketReplace(packetBytes, packetBuffer);
 				
 				packetNumInt = packetNum - '0';
-
 				if(lastFrameReceived < packetNumInt && packetNumInt <= largestAcceptableFrame) {
 					generatePacket();
 
@@ -422,9 +435,11 @@ void server(int portNum)
 					for (int i = 0; i < adjustedPayloadSize_s; i++) {
 						unsigned char character = *(packet2 + i);
 						contents += character;
-					}
+					}*/
 
-					ofstream afile;
+					//printPacketReplace(packetBytes, packetBuffer);
+					
+					/*ofstream afile;
 					afile.open("ServerOutput.txt");
 					afile << contents;
 					afile.close();
@@ -510,6 +525,17 @@ void server(int portNum)
 						sendAcks = false;
 						//isSuperDone = true;
 					}
+				}
+				
+				if(packetNumInt == 207 && isDuplicate) {
+					sequenceNumber_s = 0;
+					packetNumInt = 0;
+					lastFrameReceived -= 208;
+					largestAcceptableFrame -= 208;
+					isDuplicate = false;
+				}
+				else {
+					isDuplicate = true;
 				}
 			}
 			

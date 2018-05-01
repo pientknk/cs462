@@ -29,10 +29,10 @@ int main(int argc, char **argv) {
 				string preset = GetPresets();
 
 				if (preset == "SW") {
-					client(portNum, 256, 2, "test.txt", Protocol::SW, -1, acksToLose, packetsToDamage, packetsToDrop, 1000);
+					client(portNum, 1000, 100, "bigbin", Protocol::SW, -1, acksToLose, packetsToDamage, packetsToDrop, 50000);
 				}
 				else if (preset == "GBN") {
-					client(portNum, 50000, 2, "longtest.txt", Protocol::GBN, 4, acksToLose, packetsToDamage, packetsToDrop, 500000);
+					client(portNum, 20000, 2, "bigbin", Protocol::GBN, 8, acksToLose, packetsToDamage, packetsToDrop, 600000);
 				}
 				else if (preset == "SR") {
 					cout << "Not configured";

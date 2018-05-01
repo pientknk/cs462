@@ -102,7 +102,7 @@ int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<in
 	//print off packet payload after copying it over from the file, replacing some chars
 	//printPayloadReplace(currentPacketSize, packetPayload);
 
-	/*string contents = "";
+	/* string contents = "";
 
 	for (int i = 0; i < currentPacketSize; i++) {
 		unsigned char character = *(packetPayload + i);
@@ -113,7 +113,7 @@ int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<in
 	afile.open("ClientOutput.txt");
 	afile << contents;
 	afile.close();
-	cout << "Wrote file ClientOutput.txt" << endl;*/
+	cout << "Wrote file ClientOutput.txt" << endl; */
 
 	uint16_t value = gen_crc16(packetPayload, currentPacketSize);
 	//printCheckSumIndividual(value);
@@ -336,6 +336,7 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 		}
 		else {
 			extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, NULL, NULL);
+			//printPacketReplace(extraBytes, packet_c);
 			bytes_c = currentPacketSize;
 
 			if (extraBytes <= 0)
@@ -558,6 +559,12 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 				lastAckReceived = ackValue;
 				numAcksReceived++;
 				
+				if(ackValue	== 207) {
+					sequenceNumber_c = 0;
+					lastAckReceived -= 208;
+					lastFrameSent -= 208;
+				}
+				
 				cout << "Current window = [";
 				for(int i = 0; i < sendingWindowSize; i++) {
 					if(lastAckReceived + i + 1 < maxPackets) {
@@ -574,6 +581,8 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 				cout << "Unexpected Ack: " << "Ack " << ackValue << " instead of Ack "<< expectedPacketNum << endl;
 				//didReceiveLastAck = false;
 			}
+			
+			
 		}
 		
 	}
