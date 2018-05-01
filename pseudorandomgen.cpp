@@ -25,15 +25,3 @@ void setRandoms(long max, long numRandoms, vector<long>& randoms) {
 long getARandom(long max) {
 	return f(max);
 }
-
-//int main()
-//{
-//  const int MAX = 20;
-//  long nonce = 5647892341;
-//  for  (int i = 1; i <= MAX; i++) {
-//
-//      cout << f(nonce) << endl;
-//
-//  } 
-//  return (0);
-//}

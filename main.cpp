@@ -32,11 +32,10 @@ int main(int argc, char **argv) {
 					client(portNum, 1000, 100, "bigbin", Protocol::SW, -1, acksToLose, packetsToDamage, packetsToDrop, 50000);
 				}
 				else if (preset == "GBN") {
-					client(portNum, 20000, 2, "bigbin", Protocol::GBN, 8, acksToLose, packetsToDamage, packetsToDrop, 600000);
+					client(portNum, 20000, 2, "meatybin", Protocol::GBN, 8, acksToLose, packetsToDamage, packetsToDrop, 600000);
 				}
 				else if (preset == "SR") {
 					cout << "Not configured";
-					//client(portNum, packetSizeInBytes, seqNumberRange, fileName, protocol, slidingWindowSize, acksToLose, packetsToDamage, packetsToDrop, intervalTimeInMicroseconds);
 				}
 				else {
 					string fileName = GetFileName();
@@ -80,7 +79,6 @@ int main(int argc, char **argv) {
 						double convertedAvgTimeout = stod(timesVector.at(1), &sz);
 						intervalTimeInMicroseconds = (int)(convertedAvgTimeout * 15000); //convert it from ms to us
 						cout << "Ping Calculated Timeout: " << intervalTimeInMicroseconds << "us" << endl;
-						//cout << "Command Output: " << commandOutput << endl;
 					}
 
 					seqNumberRange = GetSequenceNumberRange(maxPackets);
@@ -133,21 +131,21 @@ int main(int argc, char **argv) {
 						else {
 							for (int i = 0; i < maxPackets; i++) {
 								int randomChance = getARandom(100);
-								//cout << "Chance to drop a packet: " << randomChance << endl;
+								
 								//random chance to add to packetsToDrop
 								if (randomChance < getARandom(50)) {
 									packetsToDrop.push_back(getARandom(seqNumberRange));
 								}
 
 								randomChance = getARandom(100);
-								//cout << "Chance to damage a packet: " << randomChance << endl;
+								
 								//random chance to add to packetsToDamage
 								if (randomChance < getARandom(50)) {
 									packetsToDamage.push_back(getARandom(seqNumberRange));
 								}
 
 								randomChance = getARandom(100);
-								//cout << "Chance to lose an ack: " << randomChance << endl;
+								
 								//random chance to add to acksToLose
 								if (randomChance < getARandom(50)) {
 									acksToLose.push_back(getARandom(seqNumberRange));

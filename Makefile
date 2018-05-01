@@ -1,9 +1,9 @@
 CC = g++
 CFLAGS =  -std=c++11 -lm -pedantic
 
-CCFILES = main.cpp server.cpp client.cpp packet.cpp filehandler.cpp crc16Checksum.cpp timer.cpp userinput.cpp printing.cpp pseudorandomgen.cpp
+CCFILES = main.cpp server.cpp client.cpp filehandler.cpp crc16Checksum.cpp timer.cpp userinput.cpp printing.cpp pseudorandomgen.cpp
 
-OFILES = main.o server.o client.o packet.o filehandler.o crc16Checksum.o timer.o userinput.o printing.o pseudorandomgen.o
+OFILES = main.o server.o client.o filehandler.o crc16Checksum.o timer.o userinput.o printing.o pseudorandomgen.o
 
 all: link
 

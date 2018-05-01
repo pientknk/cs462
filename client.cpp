@@ -95,29 +95,8 @@ int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<in
 	else{
 		memcpy(packetPayload, packetPointer, currentPacketSize);
 	}
-
-	//print off current packet payload from file
-	//printPayload(currentPacketSize, packetPayload);
-
-	//print off packet payload after copying it over from the file, replacing some chars
-	//printPayloadReplace(currentPacketSize, packetPayload);
-
-	/* string contents = "";
-
-	for (int i = 0; i < currentPacketSize; i++) {
-		unsigned char character = *(packetPayload + i);
-		contents += character;
-	}
-
-	ofstream afile;
-	afile.open("ClientOutput.txt");
-	afile << contents;
-	afile.close();
-	cout << "Wrote file ClientOutput.txt" << endl; */
-
+	
 	uint16_t value = gen_crc16(packetPayload, currentPacketSize);
-	//printCheckSumIndividual(value);
-	//printCheckSum(value);
 
 	//packet vars
 	adjustedPayloadSize_c = 0;
@@ -130,8 +109,6 @@ int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<in
 	}
 
 	packet_c = new unsigned char[adjustedPayloadSize_c + PACKET_FRAME_SIZE];
-	
-	//cout << "Size of packet: " << adjustedPayloadSize_c + PACKET_FRAME_SIZE << endl;
 
 	unsigned char packetNum = '0' + sequenceNumber_c;
 	int packetIndex = 0;
@@ -141,12 +118,6 @@ int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<in
 	int zz = 0;
 	packet_c[zz] = SOH;
 	zz++;
-
-	/*cout << "ACks to lose before: " << endl;
-	for (int i = 0; i < acksToLose.size(); i++) {
-		cout << acksToLose.at(i) << " ";
-	}
-	cout << endl;*/
 
 	//if we should drop the ack for this packet, then make seq num -1 so the server knows
 	if (!acksToLose.empty()) {
@@ -165,12 +136,6 @@ int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<in
 		packet_c[zz] = packetNum;
 		zz++;
 	}
-	
-	/*cout << "ACks to lose after: " << endl;
-	for (int i = 0; i < acksToLose.size(); i++) {
-		cout << acksToLose.at(i) << " ";
-	}
-	cout << endl;*/
 	
 	packet_c[zz] = STX;
 	zz++;
@@ -196,12 +161,6 @@ int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<in
 	//assign end of header
 	packet_c[i] = ETX;
 
-	/*cout << "packets to damage before: " << endl;
-	for (int i = 0; i < packetsToDamage.size(); i++) {
-		cout << packetsToDamage.at(i) << " ";
-	}
-	cout << endl;*/
-
 	if (!packetsToDamage.empty()) {
 		vector<int>::iterator it = find(packetsToDamage.begin(), packetsToDamage.end(), sequenceNumber_c);
 		if (it != packetsToDamage.end()) {
@@ -222,17 +181,6 @@ int writePacket(vector<int> &acksToLose, vector<int> &packetsToDamage, vector<in
 	if(windowContents != NULL){
 		(*windowContents).push_back(packetPayload);
 	}
-	
-	//cout << packetPayload << endl;
-
-	/*cout << "packets to damage after: " << endl;
-	for (int i = 0; i < packetsToDamage.size(); i++) {
-		cout << packetsToDamage.at(i) << " ";
-	}
-	cout << endl;*/
-
-	//print off entire packet with * replacing
-	//printPacketReplace(adjustedPayloadSize_c + PACKET_FRAME_SIZE, packet_c);
 
 	//get updated time
 	startWriteUSec = timer.GetCurrentTimeInMicroSeconds();
@@ -336,7 +284,6 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 		}
 		else {
 			extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, NULL, NULL);
-			//printPacketReplace(extraBytes, packet_c);
 			bytes_c = currentPacketSize;
 
 			if (extraBytes <= 0)
@@ -357,7 +304,6 @@ void clientStopAndWait(int portNum, int packetSize, int seqNumberRange, string f
 		bytes_c = read(socket_, ackBuffer, sizeof(ack));
 
 		if (bytes_c <= 0) {
-			//cout << "timer - sendtime: " << timer.GetCurrentTimeInMicroSeconds() - sendTime << " >= " << intervalTimeout << endl;
 			if (numAcksReceived < maxPackets) {
 				cout << "Packet " << sequenceNumber_c << " **** Timed Out *****" << endl;
 				cout << "Packet " << sequenceNumber_c << " Re-transmitted" << endl;
@@ -447,7 +393,6 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 		
 						it++;
 						extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, &windowContents, *it);
-						//cout << "extraBytes: " << extraBytes << endl;
 						tempTotalBytes -= currentPacketSize;
 						bytes_c = currentPacketSize;
 
@@ -477,7 +422,6 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 					}
 		
 					extraBytes = writePacket(acksToLose, packetsToDamage, packetsToDrop, &windowContents, NULL);
-					//cout << "extraBytes: " << extraBytes << endl;
 					tempTotalBytes -= currentPacketSize;
 					currentIndex += currentPacketSize;
 					
@@ -515,10 +459,8 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 		/**** READING ****/
 		bytes_c = 0;
 		bytes_c = read(socket_, ackBuffer, sizeof(ack));
-		//cout << "bytes_c: " << bytes_c << endl;
 
 		if (bytes_c <= 0) {
-			//cout << "timer - sendtime: " << timer.GetCurrentTimeInMicroSeconds() - sendTime << " >= " << intervalTimeout << endl;
 			if (lastAckReceived < maxPackets) {
 				cout << "Packet " << sequenceNumber_c << " **** Timed Out *****" << endl;
 				cout << "Packet " << sequenceNumber_c << " Re-transmitted" << endl;
@@ -540,8 +482,6 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 				time_t readTime = timer.GetCurrentTimeInMicroSeconds();
 				time_t rtt = readTime - sendTime;
 
-				//currentIndex += currentPacketSize;
-
 				if (bytes_c > 0) {
 					totalBytes_c -= bytesSent;
 					extraBytes = bytesSent;
@@ -551,8 +491,6 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 				cout << "Ack " << ackValue << " received. (RTT for pkt " << ackValue << " = " << 	rtt << "us)" << endl;
 
 				bytesWritten += extraBytes;
-				
-				//sequenceNumber_c++;
 				
 				windowCapacity -= lastFrameSent - lastAckReceived;
 				
@@ -579,7 +517,6 @@ void clientGBN(int portNum, int packetSize, int seqNumberRange, string fileName,
 			}
 			else {
 				cout << "Unexpected Ack: " << "Ack " << ackValue << " instead of Ack "<< expectedPacketNum << endl;
-				//didReceiveLastAck = false;
 			}
 			
 			

@@ -10,7 +10,6 @@
 #include <unistd.h>
 #include <math.h>
 
-#include "packet.cpp"
 #include "timer.cpp"
 #include "filehandler.h"
 #include "crc16Checksum.h"
